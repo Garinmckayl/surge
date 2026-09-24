@@ -6,6 +6,8 @@ Surge is a founder-focused opportunity radar for grants, accelerators, hackathon
 
 [Open Surge](https://35-166-228-8.sslip.io) — hosted on AWS EC2. See [SUBMISSION.md](SUBMISSION.md) for the Builder Center project story and demo outline.
 
+![Surge dashboard preview](docs/surge-dashboard.png)
+
 ## What works
 
 - A founder profile for location, stage, focus areas, project summary, and weekly application time.

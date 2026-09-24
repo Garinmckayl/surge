@@ -10,6 +10,8 @@
 
 **Live demo:** https://35-166-228-8.sslip.io
 
+![Surge dashboard preview](docs/surge-dashboard.png)
+
 ## Short description
 
 Founders don't need another opportunity list; they need to know which application is worth their limited time. Surge discovers grants, accelerators, and hackathons, links every result to its cited official source, and ranks the shortlist with Jev's structured eligibility, project-fit, and effort judgments plus deterministic deadline scoring.
@@ -29,6 +31,10 @@ Surge is being built for the AWS Builder Center Zero to Shipped challenge itself
 3. Open a result's source; point out the source-backed status and published deadline.
 4. Show the Jev eligibility choice and project/effort scores, then the code-calculated deadline points and total.
 5. Save the strongest result to the pipeline and explain which missing requirement the founder should verify next.
+
+## Development process
+
+Codex CLI helped shape the product, implement and test the Next.js app, and deploy it to EC2 using the machine's configured AWS CLI credentials. The agent inspected the existing instance and network rules, configured a restartable service and Nginx HTTPS proxy, then verified the live public URL.
 
 ## Technical notes
 
