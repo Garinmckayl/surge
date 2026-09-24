@@ -1,11 +1,11 @@
 import type { Opportunity, FounderProfile } from "@/lib/types";
 
 export const defaultProfile: FounderProfile = {
-  name: "Alex Morgan",
-  location: "San Francisco, CA",
+  name: "Founder",
+  location: "United States",
   stage: "Pre-seed",
-  sectors: "AI, climate tech",
-  project: "Building an AI copilot that helps small farms reduce water use and forecast crop stress.",
+  sectors: "AI, founder tools, funding access",
+  project: "Surge helps early-stage founders discover grants, accelerators, and hackathons, then rank each option by project fit, eligibility, location, deadline, and application effort.",
   weeklyHours: 8,
 };
 
@@ -53,6 +53,22 @@ export const demoOpportunities: Opportunity[] = [
     effortHours: 12,
     funding: "Investment; terms vary",
     tags: ["Pre-seed", "Mentorship", "Cohort"],
+    demo: true,
+  },
+  {
+    id: "zero-to-shipped-2026",
+    name: "Zero to Shipped",
+    type: "Hackathon",
+    status: "open",
+    organizer: "AWS Builder Center",
+    description: "Build and ship an original AI application hosted on AWS; review the official rules for the submission requirements and judging criteria.",
+    sourceUrl: "https://builder.aws.com/build/hackathons/e83e84e5-4f4c-383b-bbe9-4a15ac195d55",
+    location: "Online · AWS Builder Center",
+    eligibility: "See the official event rules for eligibility, category, lane, and project requirements.",
+    deadline: "2026-10-02",
+    effortHours: null,
+    funding: null,
+    tags: ["AWS", "AI", "Startup"],
     demo: true,
   },
   {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDownUp, ArrowRight, Bookmark, CalendarDays, Check, ChevronDown, CircleHelp,
-  Compass, ExternalLink, Filter, Flame, Globe2, Layers3, MapPin, Plus, Radar,
+  Compass, ExternalLink, Filter, Flame, Layers3, MapPin, Radar,
   Search, Settings2, Sparkles, Timer, TrendingUp, X,
 } from "lucide-react";
 import { demoOpportunities, defaultProfile } from "@/lib/demo";
@@ -36,26 +36,50 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("Reference listings are ready. Verify each live cycle at its source.");
   const [profileOpen, setProfileOpen] = useState(true);
-  const [searchMode, setSearchMode] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const storedProfile = localStorage.getItem("surge-profile");
-    const storedSaved = localStorage.getItem("surge-saved");
-    if (storedProfile) {
-      try { setProfile({ ...defaultProfile, ...JSON.parse(storedProfile) }); } catch { /* Ignore stale browser data. */ }
-    }
-    if (storedSaved) {
-      try { setSaved(JSON.parse(storedSaved)); } catch { /* Ignore stale browser data. */ }
-    }
+    const restore = () => {
+      const storedProfile = localStorage.getItem("surge-profile");
+      const storedSaved = localStorage.getItem("surge-saved");
+      const storedOpportunities = localStorage.getItem("surge-opportunities");
+      const storedRanked = localStorage.getItem("surge-ranked");
+      if (storedProfile) {
+        try { setProfile({ ...defaultProfile, ...JSON.parse(storedProfile) }); } catch { localStorage.removeItem("surge-profile"); }
+      }
+      if (storedSaved) {
+        try { setSaved(JSON.parse(storedSaved)); } catch { localStorage.removeItem("surge-saved"); }
+      }
+      if (storedOpportunities) {
+        try { setOpportunities(JSON.parse(storedOpportunities)); } catch { localStorage.removeItem("surge-opportunities"); }
+      }
+      if (storedRanked) {
+        try { setRanked(JSON.parse(storedRanked)); } catch { localStorage.removeItem("surge-ranked"); }
+      }
+      setHydrated(true);
+    };
+    window.requestAnimationFrame(restore);
   }, []);
 
   useEffect(() => {
+    if (!hydrated) return;
     localStorage.setItem("surge-profile", JSON.stringify(profile));
-  }, [profile]);
+  }, [hydrated, profile]);
 
   useEffect(() => {
+    if (!hydrated) return;
     localStorage.setItem("surge-saved", JSON.stringify(saved));
-  }, [saved]);
+  }, [hydrated, saved]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    localStorage.setItem("surge-opportunities", JSON.stringify(opportunities));
+  }, [hydrated, opportunities]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    localStorage.setItem("surge-ranked", JSON.stringify(ranked));
+  }, [hydrated, ranked]);
 
   const resultItems = useMemo(() => {
     const scored = ranked.length ? ranked : opportunities.map((item) => rankForDemo(item, profile));
@@ -71,12 +95,12 @@ export default function Home() {
 
   function updateProfile<K extends keyof FounderProfile>(key: K, value: FounderProfile[K]) {
     setProfile((current) => ({ ...current, [key]: value }));
+    setRanked([]);
   }
 
   async function runScan() {
     setLoading(true);
     setNotice("Searching official sources, then asking Jev to score the shortlist…");
-    setSearchMode(true);
     try {
       const discoveryResponse = await fetch("/api/discover", {
         method: "POST",
@@ -212,7 +236,7 @@ function OpportunityCard({ opportunity, rank, saved, onSave }: { opportunity: Ra
   return <article className="opportunity-card">
     <div className="rank-rail"><span className="rank-number">{String(rank).padStart(2, "0")}</span><span className="rank-line" /></div>
     <div className="card-main">
-      <div className="card-topline"><div className="type-organizer"><span className={`type-badge ${typeClass(opportunity.type)}`}>{opportunity.type}</span><span className="org-name">{opportunity.organizer}</span></div><div className="card-top-actions">{opportunity.demo && <span className="reference-tag">REFERENCE</span>}<button className={`bookmark-button ${saved ? "bookmarked" : ""}`} aria-label={saved ? "Remove from pipeline" : "Save to pipeline"} onClick={onSave}><Bookmark size={17} fill={saved ? "currentColor" : "none"} /></button></div></div>
+      <div className="card-topline"><div className="type-organizer"><span className={`type-badge ${typeClass(opportunity.type)}`}>{opportunity.type}</span><span className="org-name">{opportunity.organizer}</span>{opportunity.status && <span className="live-opportunity-status">{opportunity.status === "open" ? "Open now" : "Upcoming"}</span>}</div><div className="card-top-actions">{opportunity.demo && <span className="reference-tag">REFERENCE</span>}<button className={`bookmark-button ${saved ? "bookmarked" : ""}`} aria-label={saved ? "Remove from pipeline" : "Save to pipeline"} onClick={onSave}><Bookmark size={17} fill={saved ? "currentColor" : "none"} /></button></div></div>
       <div className="card-heading-row"><h3>{opportunity.name}</h3><div className={`score-bubble ${opportunity.score >= 80 ? "score-high" : opportunity.score >= 65 ? "score-mid" : "score-low"}`}><span className="score-number">{opportunity.score}</span><span className="score-outof">/100</span></div></div>
       <p className="opportunity-description">{opportunity.description}</p>
       <div className="detail-row"><span><MapPin size={13} />{opportunity.location}</span><span><CalendarDays size={13} />{formatDeadline(opportunity.deadline)}</span>{opportunity.effortHours !== null && <span><Timer size={13} />~{opportunity.effortHours}h effort</span>}{opportunity.funding && <span className="funding-detail"><Sparkles size={13} />{opportunity.funding}</span>}</div>

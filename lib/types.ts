@@ -13,6 +13,7 @@ export type Opportunity = {
   id: string;
   name: string;
   type: OpportunityType;
+  status?: "open" | "upcoming";
   organizer: string;
   description: string;
   sourceUrl: string;

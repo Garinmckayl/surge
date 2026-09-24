@@ -2,6 +2,10 @@
 
 Surge is a founder-focused opportunity radar for grants, accelerators, hackathons, and startup programs. It helps a founder find the next good application by showing the source, what matches, what might not, and the effort involved.
 
+## Live demo
+
+[Open Surge](https://35-166-228-8.sslip.io) — hosted on AWS EC2. See [SUBMISSION.md](SUBMISSION.md) for the Builder Center project story and demo outline.
+
 ## What works
 
 - A founder profile for location, stage, focus areas, project summary, and weekly application time.
