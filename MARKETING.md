@@ -28,6 +28,10 @@ Surge is built on AWS and powered by Jev's structured scoring under the hood. **
 
 Try the live build at https://surge.arcumet.com
 
+## Demo recording
+
+[Watch the 81-second live walkthrough](docs/surge-demo.mp4). It shows the public app scanning current sources, Jev ranking the shortlist, and a founder saving a next move.
+
 ## Demo narration
 
 “Here's Surge. I describe the company once—project, stage, geography, and application time. Surge searches for current opportunities and keeps the official source beside every result. Jev makes structured fit, eligibility, and effort judgments; code handles the deadline window. The score isn't the answer by itself: Surge shows why it ranks here and what I should verify before spending time. I can save the next move directly to my pipeline.”
