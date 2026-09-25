@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { rankDeadline } from "@/lib/rank";
 import type { FounderProfile, Opportunity, RankedOpportunity } from "@/lib/types";
+import { reservePublicApiBudget } from "@/lib/public-api-guard";
 
 export const runtime = "nodejs";
+
+const BATCH_SIZE = 20;
+const MAX_OPPORTUNITIES = 1000;
+const MAX_CONCURRENT_BATCHES = 4;
 
 type DecisionAnswer = {
   type: "score" | "choice";
@@ -12,7 +17,7 @@ type DecisionAnswer = {
   probabilities?: Record<string, number>;
 };
 
-const decisionRequest = (profile: FounderProfile, opportunities: Opportunity[]) => {
+function decisionRequest(profile: FounderProfile, opportunities: Opportunity[]) {
   const stateOpportunities = Object.fromEntries(opportunities.map((item, index) => [`item_${index}`, {
     name: item.name,
     kind: item.type,
@@ -25,7 +30,8 @@ const decisionRequest = (profile: FounderProfile, opportunities: Opportunity[]) 
     deadline: item.deadline,
   }]));
   const questions: Record<string, unknown> = {};
-  opportunities.forEach((item, index) => {
+
+  opportunities.forEach((_item, index) => {
     const field = `opportunities.item_${index}`;
     questions[`item_${index}_eligibility`] = {
       type: "choice",
@@ -59,6 +65,7 @@ const decisionRequest = (profile: FounderProfile, opportunities: Opportunity[]) 
       ],
     };
   });
+
   return {
     model: "typesafe/jev-1.13",
     state: {
@@ -73,37 +80,10 @@ const decisionRequest = (profile: FounderProfile, opportunities: Opportunity[]) 
     },
     questions,
   };
-};
+}
 
-export async function POST(request: Request) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) return NextResponse.json({ error: "Add OPENROUTER_API_KEY to enable Jev rankings." }, { status: 503 });
-
-  let body: { profile?: FounderProfile; opportunities?: Opportunity[] };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid ranking request." }, { status: 400 });
-  }
-  const profile = body.profile;
-  const opportunities = Array.isArray(body.opportunities) ? body.opportunities.slice(0, 8) : [];
-  if (!profile?.location || !profile.project || opportunities.length === 0) {
-    return NextResponse.json({ error: "A complete founder profile and at least one opportunity are required." }, { status: 400 });
-  }
-
-  const response = await fetch("https://openrouter.ai/api/alpha/decisions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify(decisionRequest(profile, opportunities)),
-    signal: AbortSignal.timeout(45_000),
-  });
-  if (!response.ok) return NextResponse.json({ error: "Jev could not complete the ranking. Try again or use the demo rankings." }, { status: 502 });
-
-  const payload = await response.json();
-  const answers = payload.answers as Record<string, DecisionAnswer> | undefined;
-  if (!answers) return NextResponse.json({ error: "Jev returned an unexpected response." }, { status: 502 });
-
-  const ranked: RankedOpportunity[] = opportunities.map((item, index) => {
+function scoreBatch(profile: FounderProfile, opportunities: Opportunity[], answers: Record<string, DecisionAnswer>): RankedOpportunity[] {
+  return opportunities.map((item, index) => {
     const eligibility = answers[`item_${index}_eligibility`];
     const fit = answers[`item_${index}_project_fit`];
     const effort = answers[`item_${index}_effort_fit`];
@@ -123,6 +103,7 @@ export async function POST(request: Request) {
       item.deadline === null ? "No deadline confirmed; check the source for the next cycle." : "",
       item.effortHours === null ? "Application effort is unknown; review required materials at the source." : "",
     ].filter(Boolean);
+
     return {
       ...item,
       score,
@@ -134,5 +115,77 @@ export async function POST(request: Request) {
       probability: eligibility?.probabilities?.[eligibility.choice || ""],
     };
   });
-  return NextResponse.json({ opportunities: ranked, model: payload.model, usage: payload.usage });
+}
+
+async function rankBatch(apiKey: string, profile: FounderProfile, opportunities: Opportunity[]) {
+  const response = await fetch("https://openrouter.ai/api/alpha/decisions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify(decisionRequest(profile, opportunities)),
+    signal: AbortSignal.timeout(60_000),
+  });
+  if (!response.ok) throw new Error("Jev batch request failed.");
+
+  const payload = await response.json();
+  const answers = payload.answers as Record<string, DecisionAnswer> | undefined;
+  if (!answers) throw new Error("Jev returned an unexpected response.");
+  return scoreBatch(profile, opportunities, answers);
+}
+
+export async function POST(request: Request) {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) return NextResponse.json({ error: "Add OPENROUTER_API_KEY to enable Jev rankings." }, { status: 503 });
+
+  let body: { profile?: FounderProfile; opportunities?: Opportunity[] };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid ranking request." }, { status: 400 });
+  }
+  const profile = body.profile;
+  const opportunities = Array.isArray(body.opportunities) ? body.opportunities : [];
+  if (!profile?.location || !profile.project || opportunities.length === 0) {
+    return NextResponse.json({ error: "A complete founder profile and at least one opportunity are required." }, { status: 400 });
+  }
+  if (opportunities.length > MAX_OPPORTUNITIES) {
+    return NextResponse.json({ error: `A single rank request supports up to ${MAX_OPPORTUNITIES} opportunities.` }, { status: 413 });
+  }
+
+  const startedAt = Date.now();
+  const batches: Opportunity[][] = [];
+  for (let index = 0; index < opportunities.length; index += BATCH_SIZE) {
+    batches.push(opportunities.slice(index, index + BATCH_SIZE));
+  }
+  const budget = reservePublicApiBudget(request, "rank", batches.length, 40, 60, 60 * 60_000);
+  if (!budget.allowed) {
+    return NextResponse.json({ error: "The public Jev budget is temporarily exhausted. Please try again later." }, { status: 429, headers: { "Retry-After": String(budget.retryAfterSeconds) } });
+  }
+
+  const rankedBatches = new Array<RankedOpportunity[]>(batches.length);
+  let nextBatch = 0;
+
+  try {
+    const workers = Array.from({ length: Math.min(MAX_CONCURRENT_BATCHES, batches.length) }, async () => {
+      while (true) {
+        const batchIndex = nextBatch++;
+        if (batchIndex >= batches.length) return;
+        rankedBatches[batchIndex] = await rankBatch(apiKey, profile, batches[batchIndex]);
+      }
+    });
+    await Promise.all(workers);
+  } catch {
+    return NextResponse.json({ error: "Jev could not complete all ranking batches. Retry with fewer opportunities." }, { status: 502 });
+  }
+
+  return NextResponse.json({
+    opportunities: rankedBatches.flat(),
+    model: "typesafe/jev-1.13",
+    metadata: {
+      opportunityCount: opportunities.length,
+      batchSize: BATCH_SIZE,
+      batchCount: batches.length,
+      concurrency: Math.min(MAX_CONCURRENT_BATCHES, batches.length),
+      durationMs: Date.now() - startedAt,
+    },
+  });
 }

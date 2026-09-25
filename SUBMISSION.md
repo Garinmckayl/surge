@@ -14,15 +14,17 @@
 
 ## Short description
 
-Founders don't need another opportunity list; they need to know which application is worth their limited time. Surge discovers grants, accelerators, and hackathons, links every result to its cited official source, and ranks the shortlist with Jev's structured eligibility, project-fit, and effort judgments plus deterministic deadline scoring.
+Surge is the founder-fit decision engine for the global opportunity market. It searches grants, accelerators, and hackathons, then aligns each candidate to a startup's project, eligibility, location, deadline, and application capacity. Every rank has an official source and a clear reason.
 
 ## Full project story
 
-Early-stage founders spend scarce hours searching scattered grant, accelerator, and hackathon pages. A prestigious program can still be a bad next move if its geography, eligibility, project focus, deadline, or application workload does not fit the team.
+Opportunity directories answer what exists. Surge answers the more valuable question: what should this startup pursue next?
 
-Surge turns that hunt into a decision pipeline. A founder describes their location, stage, project, focus areas, and weekly application capacity. Surge searches the web by opportunity category, requires a matching source citation, rejects past deadlines, and surfaces open or confirmed upcoming options. Each result links to its official source and shows why it ranks where it does. Jev supplies typed eligibility choices and project/effort scores; code handles deadline runway and combines the points transparently. Unknowns stay visible instead of being presented as facts.
+A founder profile becomes the scoring lens. Surge discovers candidate grants, accelerators, and hackathons from official sources. Jev evaluates project fit, eligibility, and application effort with structured choices and scores; Surge adds deterministic deadline runway and produces a source-backed action queue. The throughput unlock is the format: compact typed decisions, batched across candidates—not a long generated memo for each link. No generic summary, no untraceable score—each opportunity comes with the evidence and the reason it ranks where it does.
 
-Surge is being built for the AWS Builder Center Zero to Shipped challenge itself: a founder-tool built and hosted on AWS, with its own active build opportunity visible in the reference pipeline.
+The scale thesis is simple: a founder should not have to open thousands of program pages one by one. Surge is designed to batch-rank a much larger global catalog; Jev decisions run in 20-record batches, while the live demo proves the cited-discovery-to-ranked-action loop. The current web scan returns up to 30 verified candidates per pass, and we will publish throughput claims only after measuring the larger catalog.
+
+Surge is being built for the AWS Builder Center Zero to Shipped challenge itself. The product is the founder-fit decision engine; Jev is the new structured scoring capability under the hood—not the thing we are asking founders to buy.
 
 ## 90-second demo outline
 
@@ -40,7 +42,10 @@ Codex CLI helped shape the product, implement and test the Next.js app, and depl
 
 - Next.js app deployed on an AWS EC2 instance; Nginx terminates HTTPS and proxies to a systemd-managed Next.js service.
 - OpenRouter web search supplies current opportunity research; the app accepts only matching URL-citation annotations and checks that the cited hostname plausibly belongs to the named organizer.
-- Jev 1.13 provides typed eligibility `choice` and project/effort `score` judgments. Deadline points are calculated in application code.
+- Jev 1.13 provides typed eligibility `choice` and project/effort `score` judgments. Surge dispatches candidates in 20-record batches, supports up to 1,000 records per rank request, limits concurrency to four, and returns measured batch count and latency. Deadline points are calculated in application code.
+- Public discovery and ranking endpoints have per-client and daily budgets to cap OpenRouter spend during the demo.
+- Live discovery currently checks grants, accelerators, and hackathons separately and returns up to 30 citation-verified candidates per scan; expanding the maintained source catalog is the path to the full thousands-scale vision.
+- Public API routes apply per-client and daily request budgets to bound OpenRouter and Jev spend.
 - OpenRouter credentials remain server-side in an ignored, mode-600 runtime file. The browser never receives the key.
 - Demo/reference rows are labelled, and current-cycle details must be verified at the linked source.
 

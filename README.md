@@ -1,6 +1,6 @@
 # Surge
 
-Surge is a founder-focused opportunity radar for grants, accelerators, hackathons, and startup programs. It helps a founder find the next good application by showing the source, what matches, what might not, and the effort involved.
+Surge is a founder-fit decision engine for the global opportunity market—not another static directory. It searches grants, accelerators, and hackathons, then ranks what fits a startup by project, eligibility, location, deadline, and application capacity, with source and reason attached.
 
 ## Live demo
 
@@ -12,7 +12,8 @@ Surge is a founder-focused opportunity radar for grants, accelerators, hackathon
 
 - A founder profile for location, stage, focus areas, project summary, and weekly application time.
 - Live web discovery through OpenRouter's web search tool, constrained to official opportunity sources.
-- Typed Jev decisions for eligibility (`choice`), project fit (`score`), and application effort (`score`). Deadline runway is calculated deterministically in code.
+- Typed Jev decisions for eligibility (`choice`), project fit (`score`), and effort fit (`score`) run in 20-record batches; each rank request accepts up to 1,000 candidates with bounded concurrency. Deadline runway stays deterministic.
+- Public OpenRouter routes have per-client and daily budgets to limit spend.
 - A visible 100-point score breakdown with match reasons and eligibility/deadline watchouts.
 - Local demo listings, a transparent rules-based demo score, and a saved pipeline that work without an API key. Demo entries are references, not claims that a cycle is open.
 

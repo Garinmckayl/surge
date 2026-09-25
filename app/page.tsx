@@ -34,7 +34,7 @@ export default function Home() {
   const [activeFilter, setActiveFilter] = useState<FilterName>("All opportunities");
   const [savedOnly, setSavedOnly] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [notice, setNotice] = useState("Reference listings are ready. Verify each live cycle at its source.");
+  const [notice, setNotice] = useState("A source-backed reference set is ready. Scan live sources to rank fresh opportunities.");
   const [profileOpen, setProfileOpen] = useState(true);
   const [hydrated, setHydrated] = useState(false);
 
@@ -100,7 +100,7 @@ export default function Home() {
 
   async function runScan() {
     setLoading(true);
-    setNotice("Searching official sources, then asking Jev to score the shortlist…");
+    setNotice("Scanning official sources and batching founder-fit decisions…");
     try {
       const discoveryResponse = await fetch("/api/discover", {
         method: "POST",
@@ -120,7 +120,9 @@ export default function Home() {
       const rankPayload = await rankResponse.json();
       if (!rankResponse.ok) throw new Error(rankPayload.error || "Jev ranking is unavailable.");
       setRanked(rankPayload.opportunities as RankedOpportunity[]);
-      setNotice(`${found.length} sourced opportunities checked ${new Date(discovery.checkedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}. Ranked with Jev 1.13.`);
+      const batchCount = Number(rankPayload.metadata?.batchCount || 1);
+      const durationSeconds = (Number(rankPayload.metadata?.durationMs || 0) / 1000).toFixed(1);
+      setNotice(`${found.length} source-cited candidates · Jev scored ${batchCount} batch${batchCount === 1 ? "" : "es"} in ${durationSeconds}s. Open sources to verify details.`);
     } catch (error) {
       if (opportunities.some((item) => item.demo)) {
         setRanked([]);
@@ -184,16 +186,16 @@ export default function Home() {
 
       <main className="main-area" id="home">
         <header className="topbar">
-          <div className="breadcrumb"><span>Workspace</span><span className="slash">/</span><strong>Opportunity radar</strong></div>
+          <div className="breadcrumb"><span>Workspace</span><span className="slash">/</span><strong>Founder-fit engine</strong></div>
           <div className="topbar-right"><div className="live-status"><span className="status-dot" />{liveCount ? "Live search connected" : "Demo workspace"}</div><button className="icon-button" aria-label="Help"><CircleHelp size={18} /></button><div className="top-avatar">{initials(profile.name || "AM")}</div></div>
         </header>
 
         <div className="content-wrap">
           <section className="welcome-row">
             <div>
-              <div className="eyebrow"><span className="eyebrow-dot" /> YOUR NEXT YES STARTS HERE</div>
-              <h1>Find the right <em>doors</em><br className="title-break" /> to knock on.</h1>
-              <p className="intro-copy">Grants, accelerators, and build challenges—sourced and scored for the startup you&apos;re actually building.</p>
+              <div className="eyebrow"><span className="eyebrow-dot" /> GLOBAL DISCOVERY · FOUNDER-SPECIFIC FIT</div>
+              <h1>The world&apos;s opportunity<br className="title-break" /> stream, <em>ranked</em><br /> for your startup.</h1>
+              <p className="intro-copy">Surge turns a noisy global market into a founder-fit action queue—ranked by project, eligibility, location, deadline, and effort, with a source and reason behind every result.</p>
             </div>
             <div className="welcome-art" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="orbit orbit-three" /><div className="art-spark art-spark-one">✳</div><div className="art-spark art-spark-two">✳</div><div className="art-core"><Radar size={29} /></div><div className="art-label">A better<br />shot at yes</div></div>
           </section>
@@ -206,8 +208,8 @@ export default function Home() {
 
           <section className="opportunities-section">
             <div className="section-heading">
-              <div><div className="section-title-line"><h2>Your opportunity radar</h2><span className={`mode-pill ${ranked.length ? "mode-live" : ""}`}><span />{ranked.length ? "JEV RANKED" : "DEMO MODE"}</span></div><p>Every score comes with a source and a reason.</p></div>
-              <button className="scan-button" onClick={runScan} disabled={loading}><span className="scan-icon">{loading ? <span className="spinner" /> : <Search size={16} />}</span>{loading ? "Scanning the web…" : "Find live opportunities"}<ArrowRight size={15} /></button>
+              <div><div className="section-title-line"><h2>Your next moves</h2><span className={`mode-pill ${ranked.length ? "mode-live" : ""}`}><span />{ranked.length ? "SURGE MATCH ENGINE" : "REFERENCE SET"}</span></div><p>Not another directory. A source-backed decision queue for this startup.</p></div>
+              <button className="scan-button" onClick={runScan} disabled={loading}><span className="scan-icon">{loading ? <span className="spinner" /> : <Search size={16} />}</span>{loading ? "Scanning the market…" : "Scan the market"}<ArrowRight size={15} /></button>
             </div>
 
             <div className="source-note"><span className="note-mark"><CircleHelp size={14} /></span><span>{notice}</span><button aria-label="Dismiss message" onClick={() => setNotice("")}><X size={14} /></button></div>
@@ -224,7 +226,7 @@ export default function Home() {
             <div className="list-footer"><span>Showing {resultItems.length} of {opportunities.length} opportunities</span><span><span className="footer-dot" />{ranked.length ? "Sources checked just now" : "Reference list · verify current cycles"}</span></div>
           </section>
 
-          <section className="how-it-works"><div className="how-icon"><Sparkles size={17} /></div><div><strong>Scored for your reality, not just your pitch.</strong><p>Jev weighs project fit and application effort. Code checks deadline runway. You get the why—not a black-box number.</p></div><button onClick={() => setNotice("Jev's project-fit and effort-fit scores contribute 40 and 15 points. Eligibility contributes up to 25; deadline runway contributes up to 20. Dates and hard requirements are checked separately from semantic judgments.")}>See the scoring model <ArrowRight size={14} /></button></section>
+          <section className="how-it-works"><div className="how-icon"><Sparkles size={17} /></div><div><strong>Surge owns the decision. Jev powers the scoring.</strong><p>Jev returns structured fit, eligibility, and effort judgments. Surge adds source checks and deadline math, then turns the pool into your next best moves.</p></div><button onClick={() => setNotice("Jev's project-fit and effort-fit scores contribute 40 and 15 points. Eligibility contributes up to 25; deadline runway contributes up to 20. Dates and hard requirements are checked separately from semantic judgments.")}>See the scoring model <ArrowRight size={14} /></button></section>
           <footer className="page-footer"><span>Built for founders with more ambition than hours.</span><span>Surge <span className="footer-separator">·</span> Make your next move count</span></footer>
         </div>
       </main>

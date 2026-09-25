@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { FounderProfile, Opportunity, OpportunityType } from "@/lib/types";
+import { reservePublicApiBudget } from "@/lib/public-api-guard";
 
 export const runtime = "nodejs";
 
@@ -42,7 +43,7 @@ async function discoverCategory(apiKey: string, profile: FounderProfile, categor
       messages: [
         {
           role: "system",
-          content: `You are a careful startup opportunity researcher. Today is ${today} UTC. Search ONLY for ${category.toLowerCase()} opportunities accepting applications now or with an explicitly confirmed future cycle. Never include expired, closed, historical, or undated opportunities whose current status cannot be verified from the official application page. Return at most 2. Use only an official organizer application/program page as the source; no press releases, roundups, or third-party directories. Never guess dates, eligibility, funding, or effort. A missing value must be written as unknown. Use ISO YYYY-MM-DD for a published deadline. For each item, return exactly these lines, with one blank line between items, no introduction or markdown fences:\nNAME: ...\nSTATUS: open or upcoming\nDEADLINE: YYYY-MM-DD or none\nORGANIZER: ...\nLOCATION: ...\nELIGIBILITY: ...\nEFFORT_HOURS: number or unknown\nFUNDING: ... or unknown\nTAGS: comma-separated\nDESCRIPTION: one factual sentence\nSOURCE: [Official application page](https://exact-url)\nThe SOURCE markdown link must cite the official page you actually found in search.`,
+          content: `You are a careful startup opportunity researcher. Today is ${today} UTC. Search ONLY for ${category.toLowerCase()} opportunities accepting applications now or with an explicitly confirmed future cycle. Never include expired, closed, historical, or undated opportunities whose current status cannot be verified from the official application page. Return at most 10. Use only an official organizer application/program page as the source; no press releases, roundups, or third-party directories. Never guess dates, eligibility, funding, or effort. A missing value must be written as unknown. Use ISO YYYY-MM-DD for a published deadline. For each item, return exactly these lines, with one blank line between items, no introduction or markdown fences:\nNAME: ...\nSTATUS: open or upcoming\nDEADLINE: YYYY-MM-DD or none\nORGANIZER: ...\nLOCATION: ...\nELIGIBILITY: ...\nEFFORT_HOURS: number or unknown\nFUNDING: ... or unknown\nTAGS: comma-separated\nDESCRIPTION: one factual sentence\nSOURCE: [Official application page](https://exact-url)\nThe SOURCE markdown link must cite the official page you actually found in search.`,
         },
         {
           role: "user",
@@ -118,9 +119,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Add a location, project summary, and focus areas first." }, { status: 400 });
   }
 
+  const budget = reservePublicApiBudget(request, "discover", categories.length, 9, 60, 10 * 60_000);
+  if (!budget.allowed) {
+    return NextResponse.json({ error: "The public scan budget is temporarily exhausted. Please try again later." }, { status: 429, headers: { "Retry-After": String(budget.retryAfterSeconds) } });
+  }
+
   try {
     const batches = await Promise.all(categories.map((category) => discoverCategory(apiKey, profile, category)));
-    const opportunities = batches.flat().slice(0, 8);
+    const opportunities = batches.flat().slice(0, 30);
     if (!opportunities.length) {
       return NextResponse.json({ error: "No currently open or confirmed upcoming opportunities with verified official-source citations were found. Broaden your focus or try again later." }, { status: 404 });
     }
