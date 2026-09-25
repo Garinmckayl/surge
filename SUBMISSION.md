@@ -8,7 +8,7 @@
 **Lane:** Startup  
 **Tags:** `#commercial-potential` `#startup`
 
-**Live demo:** https://35-166-228-8.sslip.io
+**Live demo:** https://surge.arcumet.com
 
 ![Surge dashboard preview](docs/surge-dashboard.png)
 
