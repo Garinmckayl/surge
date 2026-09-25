@@ -10,7 +10,7 @@
 
 **Live demo:** https://surge.arcumet.com
 
-**Recorded walkthrough:** [81-second live demo](docs/surge-demo.mp4)
+**Recorded walkthrough:** [68-second live demo](docs/surge-demo.mp4)
 
 ![Surge dashboard preview](docs/surge-dashboard.png)
 

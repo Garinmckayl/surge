@@ -6,7 +6,7 @@ Surge is a founder-fit decision engine for the global opportunity market—not a
 
 [Open Surge](https://surge.arcumet.com) — hosted on AWS EC2. See [SUBMISSION.md](SUBMISSION.md) for the Builder Center project story and demo outline.
 
-**Live demo walkthrough:** [81-second recording](docs/surge-demo.mp4)
+**Live demo walkthrough:** [68-second recording](docs/surge-demo.mp4)
 
 ![Surge dashboard preview](docs/surge-dashboard.png)
 

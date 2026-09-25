@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownUp, ArrowRight, Bookmark, CalendarDays, Check, ChevronDown, CircleHelp,
   Compass, ExternalLink, Filter, Flame, Layers3, MapPin, Radar,
@@ -26,6 +26,30 @@ function initials(name: string) {
   return name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 }
 
+function AnimatedScore({ value }: { value: number }) {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    let startTime: number | null = null;
+    let animationFrame = 0;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const duration = reducedMotion ? 0 : 920;
+
+    const step = (currentTime: number) => {
+      startTime ??= currentTime;
+      const progress = duration === 0 ? 1 : Math.min((currentTime - startTime) / duration, 1);
+      const easedProgress = 1 - Math.pow(1 - progress, 4);
+      setDisplayValue(Math.round(value * easedProgress));
+      if (progress < 1) animationFrame = window.requestAnimationFrame(step);
+    };
+
+    animationFrame = window.requestAnimationFrame(step);
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [value]);
+
+  return <span className="score-number" aria-label={`${value} out of 100`}>{displayValue}</span>;
+}
+
 export default function Home() {
   const [profile, setProfile] = useState<FounderProfile>(defaultProfile);
   const [opportunities, setOpportunities] = useState<Opportunity[]>(demoOpportunities);
@@ -37,6 +61,9 @@ export default function Home() {
   const [notice, setNotice] = useState("A source-backed reference set is ready. Scan live sources to rank fresh opportunities.");
   const [profileOpen, setProfileOpen] = useState(true);
   const [hydrated, setHydrated] = useState(false);
+  const [scanStage, setScanStage] = useState<"idle" | "discovering" | "ranking">("idle");
+  const listRef = useRef<HTMLDivElement>(null);
+  const previousRects = useRef(new Map<string, DOMRect>());
 
   useEffect(() => {
     const restore = () => {
@@ -93,6 +120,44 @@ export default function Home() {
   const topScore = resultItems[0]?.score ?? 0;
   const fitCount = resultItems.filter((item) => item.score >= 75).length;
 
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+
+    const cards = Array.from(list.querySelectorAll<HTMLElement>("[data-opportunity-id]"));
+    const previous = previousRects.current;
+    const current = new Map<string, DOMRect>();
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    cards.forEach((card, index) => {
+      const opportunityId = card.dataset.opportunityId;
+      if (!opportunityId) return;
+      const nextRect = card.getBoundingClientRect();
+      const previousRect = previous.get(opportunityId);
+      current.set(opportunityId, nextRect);
+      if (reducedMotion) return;
+
+      card.getAnimations().forEach((animation) => animation.cancel());
+      if (previousRect) {
+        const deltaX = previousRect.left - nextRect.left;
+        const deltaY = previousRect.top - nextRect.top;
+        if (deltaX || deltaY) {
+          card.animate([
+            { transform: `translate(${deltaX}px, ${deltaY}px) scale(.975)`, opacity: 0.68, filter: "saturate(.72)" },
+            { transform: "translate(0, 0) scale(1)", opacity: 1, filter: "saturate(1)" },
+          ], { duration: 900, delay: Math.min(index, 8) * 55, easing: "cubic-bezier(.16, 1, .3, 1)" });
+        }
+      } else {
+        card.animate([
+          { transform: "translateY(28px) scale(.96)", opacity: 0, filter: "blur(5px)" },
+          { transform: "translateY(0) scale(1)", opacity: 1, filter: "blur(0)" },
+        ], { duration: 700, delay: Math.min(index, 8) * 65, easing: "cubic-bezier(.16, 1, .3, 1)" });
+      }
+    });
+
+    previousRects.current = current;
+  }, [resultItems]);
+
   function updateProfile<K extends keyof FounderProfile>(key: K, value: FounderProfile[K]) {
     setProfile((current) => ({ ...current, [key]: value }));
     setRanked([]);
@@ -100,6 +165,7 @@ export default function Home() {
 
   async function runScan() {
     setLoading(true);
+    setScanStage("discovering");
     setNotice("Scanning official sources and batching founder-fit decisions…");
     try {
       const discoveryResponse = await fetch("/api/discover", {
@@ -112,6 +178,8 @@ export default function Home() {
       const found = discovery.opportunities as Opportunity[];
       if (!found.length) throw new Error("No official opportunities found for this profile. Try broader focus areas.");
       setOpportunities(found);
+      setScanStage("ranking");
+      setNotice(`Surge found ${found.length} cited candidates. Jev is aligning them to this startup…`);
       const rankResponse = await fetch("/api/rank", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -132,6 +200,7 @@ export default function Home() {
       }
     } finally {
       setLoading(false);
+      setScanStage("idle");
     }
   }
 
@@ -212,16 +281,20 @@ export default function Home() {
               <button className="scan-button" onClick={runScan} disabled={loading}><span className="scan-icon">{loading ? <span className="spinner" /> : <Search size={16} />}</span>{loading ? "Scanning the market…" : "Scan the market"}<ArrowRight size={15} /></button>
             </div>
 
-            <div className="source-note"><span className="note-mark"><CircleHelp size={14} /></span><span>{notice}</span><button aria-label="Dismiss message" onClick={() => setNotice("")}><X size={14} /></button></div>
+            <div className="source-note" aria-live="polite"><span className="note-mark"><CircleHelp size={14} /></span><span>{notice}</span><button aria-label="Dismiss message" onClick={() => setNotice("")}><X size={14} /></button></div>
+            {loading && <div className={`scan-progress scan-progress-${scanStage}`} aria-live="polite"><span className="scan-progress-orb"><Radar size={15} /></span><div className="scan-progress-copy"><strong>{scanStage === "ranking" ? "Jev is aligning the field" : "Surge is scanning the market"}</strong><span>{scanStage === "ranking" ? "Project fit · eligibility · location · deadline · effort" : "Checking grants · accelerators · hackathons"}</span></div><span className="scan-progress-track"><span /></span></div>}
 
             <div className="filter-row">
               <div className="filter-tabs" role="tablist" aria-label="Opportunity types">{filters.map((filter) => <button role="tab" aria-selected={activeFilter === filter} className={activeFilter === filter ? "filter-active" : ""} key={filter} onClick={() => { setActiveFilter(filter); setSavedOnly(false); }}>{filter}{filter === "All opportunities" && <span>{opportunities.length}</span>}</button>)}</div>
               <div className="filter-actions"><button className="saved-toggle" onClick={() => { setSavedOnly(!savedOnly); setActiveFilter("All opportunities"); }}><Bookmark size={14} fill={savedOnly ? "currentColor" : "none"} /> Saved <span>{saved.length}</span></button><button className="sort-button"><ArrowDownUp size={14} /> Best fit <ChevronDown size={13} /></button><button className="filter-button" aria-label="Filters"><Filter size={15} /></button></div>
             </div>
 
-            <div className="opportunity-list">
+            <div className={`opportunity-list-stage ${loading ? "is-scanning" : ""}`}>
+              {loading && <div className="scan-beam" aria-hidden="true" />}
+              <div className="opportunity-list" ref={listRef}>
               {resultItems.map((opportunity, index) => <OpportunityCard key={opportunity.id} opportunity={opportunity} rank={index + 1} saved={saved.includes(opportunity.id)} onSave={() => toggleSaved(opportunity.id)} />)}
               {!resultItems.length && <div className="empty-state"><div className="empty-icon"><Search size={22} /></div><h3>{savedOnly ? "Your pipeline is waiting" : "Nothing in this view yet"}</h3><p>{savedOnly ? "Save an opportunity with the bookmark icon and it will show up here." : "Try another category or broaden the focus areas in your founder profile."}</p></div>}
+            </div>
             </div>
             <div className="list-footer"><span>Showing {resultItems.length} of {opportunities.length} opportunities</span><span><span className="footer-dot" />{ranked.length ? "Sources checked just now" : "Reference list · verify current cycles"}</span></div>
           </section>
@@ -235,11 +308,11 @@ export default function Home() {
 }
 
 function OpportunityCard({ opportunity, rank, saved, onSave }: { opportunity: RankedOpportunity; rank: number; saved: boolean; onSave: () => void }) {
-  return <article className="opportunity-card">
+  return <article className="opportunity-card" data-opportunity-id={opportunity.id} style={{ animationDelay: `${Math.min(rank - 1, 8) * 55}ms` }}>
     <div className="rank-rail"><span className="rank-number">{String(rank).padStart(2, "0")}</span><span className="rank-line" /></div>
     <div className="card-main">
       <div className="card-topline"><div className="type-organizer"><span className={`type-badge ${typeClass(opportunity.type)}`}>{opportunity.type}</span><span className="org-name">{opportunity.organizer}</span>{opportunity.status && <span className="live-opportunity-status">{opportunity.status === "open" ? "Open now" : "Upcoming"}</span>}</div><div className="card-top-actions">{opportunity.demo && <span className="reference-tag">REFERENCE</span>}<button className={`bookmark-button ${saved ? "bookmarked" : ""}`} aria-label={saved ? "Remove from pipeline" : "Save to pipeline"} onClick={onSave}><Bookmark size={17} fill={saved ? "currentColor" : "none"} /></button></div></div>
-      <div className="card-heading-row"><h3>{opportunity.name}</h3><div className={`score-bubble ${opportunity.score >= 80 ? "score-high" : opportunity.score >= 65 ? "score-mid" : "score-low"}`}><span className="score-number">{opportunity.score}</span><span className="score-outof">/100</span></div></div>
+      <div className="card-heading-row"><h3>{opportunity.name}</h3><div className={`score-bubble ${opportunity.score >= 80 ? "score-high" : opportunity.score >= 65 ? "score-mid" : "score-low"}`}><AnimatedScore value={opportunity.score} /><span className="score-outof">/100</span></div></div>
       <p className="opportunity-description">{opportunity.description}</p>
       <div className="detail-row"><span><MapPin size={13} />{opportunity.location}</span><span><CalendarDays size={13} />{formatDeadline(opportunity.deadline)}</span>{opportunity.effortHours !== null && <span><Timer size={13} />~{opportunity.effortHours}h effort</span>}{opportunity.funding && <span className="funding-detail"><Sparkles size={13} />{opportunity.funding}</span>}</div>
       <div className="reason-panel"><div className="reason-heading"><span className="reason-check"><Check size={11} /></span><strong>Why it ranks here</strong><span className={`reason-engine ${opportunity.scoreSource === "Jev 1.13" ? "reason-jev" : ""}`}>{opportunity.scoreSource}</span></div><div className="reason-chips">{opportunity.reasons.map((reason, index) => <span className="reason-chip" key={`${opportunity.id}-reason-${index}`}>{reason}</span>)}</div>{opportunity.watchouts.length > 0 && <div className="watchout"><CircleHelp size={13} /><span>{opportunity.watchouts[0]}</span></div>}</div>
