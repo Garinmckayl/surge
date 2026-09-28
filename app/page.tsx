@@ -29,6 +29,10 @@ function formatDeadline(deadline: string | null) {
   return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(`${deadline}T00:00:00Z`));
 }
 
+function profileRankKey(profile: FounderProfile) {
+  return JSON.stringify({ location: profile.location, stage: profile.stage, sectors: profile.sectors, project: profile.project, weeklyHours: profile.weeklyHours });
+}
+
 function initials(name: string) {
   return name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 }
@@ -117,12 +121,16 @@ export default function Home() {
   const [sortMode, setSortMode] = useState<"fit" | "deadline" | "effort">("fit");
   const [loading, setLoading] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [profileReranking, setProfileReranking] = useState(false);
+  const [profileEditVersion, setProfileEditVersion] = useState(0);
   const [notice, setNotice] = useState("A source-backed reference set is ready. Scan live sources to rank fresh opportunities.");
   const [profileOpen, setProfileOpen] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [scanStage, setScanStage] = useState<"idle" | "discovering" | "ranking">("idle");
   const listRef = useRef<HTMLDivElement>(null);
   const previousRects = useRef(new Map<string, DOMRect>());
+  const previousScores = useRef(new Map<string, string>());
+  const lastRankedProfile = useRef<string | null>(null);
 
   useEffect(() => {
     if (cooldownSeconds <= 0) return;
@@ -173,6 +181,47 @@ export default function Home() {
     localStorage.setItem("surge-ranked", JSON.stringify(ranked));
   }, [hydrated, ranked]);
 
+  useEffect(() => {
+    if (!hydrated || profileEditVersion === 0 || loading || cooldownSeconds > 0 || !opportunities.some((item) => !item.demo)) return;
+    const profileSignature = profileRankKey(profile);
+    if (profileSignature === lastRankedProfile.current) return;
+
+    let cancelled = false;
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setProfileReranking(true);
+      setNotice("Founder profile changed · Jev is re-aligning every live opportunity…");
+      try {
+        const response = await fetch("/api/rank", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ profile, opportunities }),
+          signal: controller.signal,
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          if (response.status === 429 && !cancelled) setCooldownSeconds(Math.max(1, Number(response.headers.get("Retry-After")) || 60));
+          throw new Error(payload.error || "Jev could not update the ranking.");
+        }
+        if (cancelled) return;
+        const newlyRanked = payload.opportunities as RankedOpportunity[];
+        lastRankedProfile.current = profileSignature;
+        setRanked(newlyRanked);
+        setNotice("Preferences applied · Jev re-aligned " + newlyRanked.length + " live opportunities to your profile.");
+      } catch (error) {
+        if (!cancelled) setNotice(error instanceof Error ? error.message + " The previous live ranking is preserved." : "Jev could not update the ranking. The previous live ranking is preserved.");
+      } finally {
+        if (!cancelled) setProfileReranking(false);
+      }
+    }, 720);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [cooldownSeconds, hydrated, loading, opportunities, profile, profileEditVersion]);
+
   const resultItems = useMemo(() => {
     const scored = ranked.length ? ranked : opportunities.map((item) => rankForDemo(item, profile));
     return scored
@@ -201,40 +250,46 @@ export default function Home() {
     const cards = Array.from(list.querySelectorAll<HTMLElement>("[data-opportunity-id]"));
     const previous = previousRects.current;
     const current = new Map<string, DOMRect>();
+    const currentScores = new Map<string, string>();
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     cards.forEach((card, index) => {
       const opportunityId = card.dataset.opportunityId;
       if (!opportunityId) return;
       const nextRect = card.getBoundingClientRect();
+      const nextScore = card.dataset.score || "";
       const previousRect = previous.get(opportunityId);
+      const previousScore = previousScores.current.get(opportunityId);
       current.set(opportunityId, nextRect);
+      currentScores.set(opportunityId, nextScore);
       if (reducedMotion) return;
 
       card.getAnimations().forEach((animation) => animation.cancel());
       if (previousRect) {
         const deltaX = previousRect.left - nextRect.left;
         const deltaY = previousRect.top - nextRect.top;
-        if (deltaX || deltaY) {
+        const scoreChanged = previousScore !== undefined && previousScore !== nextScore;
+        if (deltaX || deltaY || scoreChanged) {
           card.animate([
-            { transform: `translate(${deltaX}px, ${deltaY}px) scale(.975)`, opacity: 0.68, filter: "saturate(.72)" },
-            { transform: "translate(0, 0) scale(1)", opacity: 1, filter: "saturate(1)" },
-          ], { duration: 900, delay: Math.min(index, 8) * 55, easing: "cubic-bezier(.16, 1, .3, 1)" });
+            { transform: `translate(${deltaX}px, ${deltaY}px) scale(.975)`, opacity: 0.58, filter: "blur(2px) saturate(.64)", boxShadow: "0 0 0 1px rgba(153,190,91,.3), 0 16px 34px rgba(70,112,64,.14)" },
+            { transform: "translate(0, 0) scale(1)", opacity: 1, filter: "blur(0) saturate(1)", boxShadow: "0 2px 5px rgba(28,51,61,.018)" },
+          ], { duration: 1050, delay: Math.min(index, 9) * 72, easing: "cubic-bezier(.16, 1, .3, 1)" });
         }
       } else {
         card.animate([
-          { transform: "translateY(28px) scale(.96)", opacity: 0, filter: "blur(5px)" },
-          { transform: "translateY(0) scale(1)", opacity: 1, filter: "blur(0)" },
-        ], { duration: 700, delay: Math.min(index, 8) * 65, easing: "cubic-bezier(.16, 1, .3, 1)" });
+          { transform: "translateY(36px) scale(.94)", opacity: 0, filter: "blur(8px) saturate(.6)" },
+          { transform: "translateY(0) scale(1)", opacity: 1, filter: "blur(0) saturate(1)" },
+        ], { duration: 820, delay: Math.min(index, 9) * 72, easing: "cubic-bezier(.16, 1, .3, 1)" });
       }
     });
 
     previousRects.current = current;
+    previousScores.current = currentScores;
   }, [resultItems]);
 
   function updateProfile<K extends keyof FounderProfile>(key: K, value: FounderProfile[K]) {
     setProfile((current) => ({ ...current, [key]: value }));
-    setRanked([]);
+    if (key !== "name") setProfileEditVersion((version) => version + 1);
   }
 
   async function runScan() {
@@ -275,6 +330,7 @@ export default function Home() {
         }
         throw new Error(rankPayload.error || "Jev ranking is unavailable.");
       }
+      lastRankedProfile.current = profileRankKey(profile);
       setRanked(rankPayload.opportunities as RankedOpportunity[]);
       const batchCount = Number(rankPayload.metadata?.batchCount || 1);
       const durationSeconds = (Number(rankPayload.metadata?.durationMs || 0) / 1000).toFixed(1);
@@ -364,23 +420,23 @@ export default function Home() {
             <div className="stat-card"><div className="stat-icon peach-icon"><Flame size={16} /></div><div><span className="stat-label">STRONG FITS</span><div className="stat-value">{fitCount}<span className="stat-unit"> to explore</span></div></div></div>
           </section>
 
-          <OpportunitySignalMap items={resultItems} loading={loading} />
+          <OpportunitySignalMap items={resultItems} loading={loading || profileReranking} />
 
           <section className="opportunities-section">
             <div className="section-heading">
               <div><div className="section-title-line"><h2>Your next moves</h2><span className={`mode-pill ${ranked.length ? "mode-live" : ""}`}><span />{ranked.length ? "SURGE MATCH ENGINE" : "REFERENCE SET"}</span></div><p>Not another directory. A source-backed decision queue for this startup.</p></div>
-              <button className="scan-button" onClick={runScan} disabled={loading || cooldownSeconds > 0}><span className="scan-icon">{loading ? <span className="spinner" /> : <Search size={16} />}</span>{loading ? "Scanning the market…" : cooldownSeconds > 0 ? `Retry in ${cooldownSeconds >= 60 ? `${Math.floor(cooldownSeconds / 60)}m ${cooldownSeconds % 60}s` : `${cooldownSeconds}s`}` : "Scan the market"}<ArrowRight size={15} /></button>
+              <button className="scan-button" onClick={runScan} disabled={loading || profileReranking || cooldownSeconds > 0}><span className="scan-icon">{loading || profileReranking ? <span className="spinner" /> : <Search size={16} />}</span>{profileReranking ? "Realigning your matches…" : loading ? "Scanning the market…" : cooldownSeconds > 0 ? `Retry in ${cooldownSeconds >= 60 ? `${Math.floor(cooldownSeconds / 60)}m ${cooldownSeconds % 60}s` : `${cooldownSeconds}s`}` : "Scan the market"}<ArrowRight size={15} /></button>
             </div>
 
-            <div className="source-note" aria-live="polite"><span className="note-mark"><CircleHelp size={14} /></span><span>{notice}</span><button aria-label="Dismiss message" onClick={() => setNotice("")}><X size={14} /></button></div>
-            {loading && <div className={`scan-progress scan-progress-${scanStage}`} aria-live="polite"><span className="scan-progress-orb"><Radar size={15} /></span><div className="scan-progress-copy"><strong>{scanStage === "ranking" ? "Jev is aligning the field" : "Surge is scanning the market"}</strong><span>{scanStage === "ranking" ? "Project fit · eligibility · location · deadline · effort" : "Checking grants · accelerators · hackathons"}</span></div><span className="scan-progress-track"><span /></span></div>}
+            <div className={`source-note ${profileReranking ? "source-note-realigning" : ""}`} aria-live="polite"><span className="note-mark"><CircleHelp size={14} /></span><span>{notice}</span><button aria-label="Dismiss message" onClick={() => setNotice("")}><X size={14} /></button></div>
+            {(loading || profileReranking) && <div className={`scan-progress scan-progress-${profileReranking ? "ranking" : scanStage}`} aria-live="polite"><span className="scan-progress-orb"><Radar size={15} /></span><div className="scan-progress-copy"><strong>{profileReranking ? "Jev is realigning your grid" : scanStage === "ranking" ? "Jev is aligning the field" : "Surge is scanning the market"}</strong><span>{profileReranking ? "Your profile changed · live scores and card positions are updating" : scanStage === "ranking" ? "Project fit · eligibility · location · deadline · effort" : "Checking grants · accelerators · hackathons"}</span></div><span className="scan-progress-track"><span /></span></div>}
 
             <div className="filter-row">
               <div className="filter-tabs" role="tablist" aria-label="Opportunity types">{filters.map((filter) => <button role="tab" aria-selected={activeFilter === filter} className={activeFilter === filter ? "filter-active" : ""} key={filter} onClick={() => { setActiveFilter(filter); setSavedOnly(false); }}>{filter}{filter === "All opportunities" && <span>{opportunities.length}</span>}</button>)}</div>
               <div className="filter-actions"><button className="saved-toggle" onClick={() => { setSavedOnly(!savedOnly); setActiveFilter("All opportunities"); }}><Bookmark size={14} fill={savedOnly ? "currentColor" : "none"} /> Saved <span>{saved.length}</span></button><button className="sort-button" onClick={() => setSortMode((mode) => mode === "fit" ? "deadline" : mode === "deadline" ? "effort" : "fit")} title="Cycle sort: best fit, deadline, application effort"><ArrowDownUp size={14} /> {sortMode === "fit" ? "Best fit" : sortMode === "deadline" ? "Closing soon" : "Least effort"} <ChevronDown size={13} /></button><button className={`filter-button ${deadlineOnly ? "filter-button-active" : ""}`} aria-label="Filter deadlines within 30 days" aria-pressed={deadlineOnly} title={deadlineOnly ? "Showing deadlines within 30 days" : "Filter to deadlines within 30 days"} onClick={() => setDeadlineOnly((active) => !active)}><Filter size={15} /></button></div>
             </div>
 
-            <div className={`opportunity-list-stage ${loading ? "is-scanning" : ""}`}>
+            <div className={`opportunity-list-stage ${loading || profileReranking ? "is-scanning" : ""}`}>
               {loading && <div className="scan-beam" aria-hidden="true" />}
               <div className="opportunity-list" ref={listRef}>
               {resultItems.map((opportunity, index) => <OpportunityCard key={opportunity.id} opportunity={opportunity} rank={index + 1} saved={saved.includes(opportunity.id)} onSave={() => toggleSaved(opportunity.id)} />)}
@@ -399,7 +455,7 @@ export default function Home() {
 }
 
 function OpportunityCard({ opportunity, rank, saved, onSave }: { opportunity: RankedOpportunity; rank: number; saved: boolean; onSave: () => void }) {
-  return <article className="opportunity-card" data-opportunity-id={opportunity.id} style={{ animationDelay: `${Math.min(rank - 1, 8) * 55}ms` }}>
+  return <article className="opportunity-card" data-opportunity-id={opportunity.id} data-score={opportunity.score} style={{ animationDelay: `${Math.min(rank - 1, 8) * 55}ms` }}>
     <div className="rank-rail"><span className="rank-number">{String(rank).padStart(2, "0")}</span><span className="rank-line" /></div>
     <div className="card-main">
       <div className="card-topline"><div className="type-organizer"><span className={`type-badge ${typeClass(opportunity.type)}`}>{opportunity.type}</span><span className="org-name">{opportunity.organizer}</span>{opportunity.status && <span className="live-opportunity-status">{opportunity.status === "open" ? "Open now" : "Upcoming"}</span>}</div><div className="card-top-actions">{opportunity.demo && <span className="reference-tag">REFERENCE</span>}<button className={`bookmark-button ${saved ? "bookmarked" : ""}`} aria-label={saved ? "Remove from pipeline" : "Save to pipeline"} onClick={onSave}><Bookmark size={17} fill={saved ? "currentColor" : "none"} /></button></div></div>

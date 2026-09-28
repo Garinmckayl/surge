@@ -16,7 +16,7 @@ Surge is a founder-fit decision engine for the global opportunity market—not a
 - Live web discovery through OpenRouter's web search tool, constrained to official opportunity sources.
 - Typed Jev decisions for eligibility (`choice`), project fit (`score`), and effort fit (`score`) run in 20-record batches; each rank request accepts up to 1,000 candidates with bounded concurrency. Deadline runway stays deterministic.
 - Public OpenRouter routes have per-client and daily budgets to limit spend.
-- A live signal map visualizes opportunity mix, fit tiers, and deadline runway; the shortlist includes animated re-ranking, sorting, and near-term deadline filtering.
+- A live signal map visualizes opportunity mix, fit tiers, and deadline runway; preference edits re-run Jev on live results, then animate cards into their new grid positions. Sorting and near-term deadline filtering stay interactive.
 - A visible 100-point score breakdown with match reasons and eligibility/deadline watchouts.
 - Local demo listings, a transparent rules-based demo score, and a saved pipeline that work without an API key. Demo entries are references, not claims that a cycle is open.
 
