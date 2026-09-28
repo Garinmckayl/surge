@@ -27,12 +27,20 @@ export type Opportunity = {
   demo?: boolean;
 };
 
+export type ScoreBreakdown = {
+  projectFit: number;
+  eligibility: number;
+  effortFit: number;
+  deadlineRunway: number;
+};
+
 export type RankedOpportunity = Opportunity & {
   score: number;
   scoreLabel: string;
   reasons: string[];
   watchouts: string[];
   scoreSource: "Jev 1.13" | "Rules-based demo";
+  scoreBreakdown?: ScoreBreakdown;
   confidence?: number;
   probability?: number;
 };

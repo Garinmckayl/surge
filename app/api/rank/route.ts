@@ -111,6 +111,7 @@ function scoreBatch(profile: FounderProfile, opportunities: Opportunity[], answe
       reasons,
       watchouts,
       scoreSource: "Jev 1.13",
+      scoreBreakdown: { projectFit: fitPoints, eligibility: eligiblePoints, effortFit: effortPoints, deadlineRunway: deadline.points },
       confidence: fit?.confidence,
       probability: eligibility?.probabilities?.[eligibility.choice || ""],
     };
@@ -156,7 +157,7 @@ export async function POST(request: Request) {
   for (let index = 0; index < opportunities.length; index += BATCH_SIZE) {
     batches.push(opportunities.slice(index, index + BATCH_SIZE));
   }
-  const budget = reservePublicApiBudget(request, "rank", batches.length, 40, 60, 60 * 60_000);
+  const budget = reservePublicApiBudget(request, "rank", batches.length, 50, 60, 60 * 60_000);
   if (!budget.allowed) {
     return NextResponse.json({ error: "The public Jev budget is temporarily exhausted. Please try again later." }, { status: 429, headers: { "Retry-After": String(budget.retryAfterSeconds) } });
   }

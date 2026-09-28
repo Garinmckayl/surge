@@ -6,7 +6,7 @@ Surge is a founder-fit decision engine for the global opportunity market—not a
 
 [Open Surge](https://surge.arcumet.com) — hosted on AWS EC2. See [SUBMISSION.md](SUBMISSION.md) for the Builder Center project story and demo outline.
 
-**Live demo walkthrough:** [68-second recording](docs/surge-demo.mp4)
+**Live demo walkthrough:** [31-second recording](docs/surge-demo.mp4)
 
 ![Surge dashboard preview](docs/surge-dashboard.png)
 
@@ -16,6 +16,7 @@ Surge is a founder-fit decision engine for the global opportunity market—not a
 - Live web discovery through OpenRouter's web search tool, constrained to official opportunity sources.
 - Typed Jev decisions for eligibility (`choice`), project fit (`score`), and effort fit (`score`) run in 20-record batches; each rank request accepts up to 1,000 candidates with bounded concurrency. Deadline runway stays deterministic.
 - Public OpenRouter routes have per-client and daily budgets to limit spend.
+- A live signal map visualizes opportunity mix, fit tiers, and deadline runway; the shortlist includes animated re-ranking, sorting, and near-term deadline filtering.
 - A visible 100-point score breakdown with match reasons and eligibility/deadline watchouts.
 - Local demo listings, a transparent rules-based demo score, and a saved pipeline that work without an API key. Demo entries are references, not claims that a cycle is open.
 
@@ -30,7 +31,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open `http://localhost:3000`. Without a key, the reference list and demo scoring work; selecting **Find live opportunities** explains how to enable live search.
+Open `http://localhost:3000`. Without a key, the reference list and demo scoring work; clicking **Scan the market** explains how to enable live search.
 
 ## Score model
 

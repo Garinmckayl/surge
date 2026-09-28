@@ -17,10 +17,15 @@ export function rankForDemo(opportunity: Opportunity, profile: FounderProfile): 
     : Math.max(18, Math.min(100, 100 - Math.max(0, opportunity.effortHours - profile.weeklyHours) * 1.45));
   const deadlineDays = opportunity.deadline ? Math.ceil((new Date(opportunity.deadline).getTime() - Date.now()) / 86_400_000) : null;
   const deadlineFit = deadlineDays === null ? 72 : deadlineDays < 0 ? 0 : deadlineDays < 4 ? 35 : deadlineDays < 8 ? 55 : deadlineDays < 15 ? 70 : 90;
-  const score = Math.round(sectorFit * 0.4 + (locationMatch ? 90 : 48) * 0.2 + effortFit * 0.2 + deadlineFit * 0.2);
+  const projectFitPoints = Math.round(sectorFit * 0.4);
+  const eligibilityPoints = !locationMatch ? 0 : sharedEligibility.length > 0 ? 25 : 13;
+  const effortFitPoints = Math.round(effortFit * 0.15);
+  const deadlinePoints = Math.round(deadlineFit * 0.2);
+  const score = Math.min(100, projectFitPoints + eligibilityPoints + effortFitPoints + deadlinePoints);
   const reasons = [
     matchedTags.length ? `Project overlap: ${matchedTags.slice(0, 2).join(" + ")}.` : "Project fit is a broad match; confirm the program’s focus before applying.",
     locationMatch ? `Location works: ${opportunity.location}.` : `Location needs checking: ${opportunity.location}.`,
+    `Eligibility/geography cues: ${eligibilityPoints}/25 points; verify the full rules at the source.`,
     opportunity.effortHours === null
       ? "Application effort is not published; estimate it from the official requirements."
       : `Estimated ${opportunity.effortHours} application hours vs ${profile.weeklyHours} hours available per week.`,
@@ -39,6 +44,7 @@ export function rankForDemo(opportunity: Opportunity, profile: FounderProfile): 
     reasons,
     watchouts,
     scoreSource: "Rules-based demo",
+    scoreBreakdown: { projectFit: projectFitPoints, eligibility: eligibilityPoints, effortFit: effortFitPoints, deadlineRunway: deadlinePoints },
   };
 }
 

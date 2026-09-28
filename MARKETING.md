@@ -30,7 +30,7 @@ Try the live build at https://surge.arcumet.com
 
 ## Demo recording
 
-[Watch the 68-second live walkthrough](docs/surge-demo.mp4). It shows the public app scanning current sources, Jev ranking the shortlist, and a founder saving a next move.
+[Watch the 31-second time-compressed live walkthrough](docs/surge-demo.mp4). It shows the public app scanning current sources, Jev ranking the shortlist, and a founder saving a next move.
 
 ## Demo narration
 
@@ -46,3 +46,7 @@ Try the live build at https://surge.arcumet.com
 ## Positioning discipline
 
 Lead with Surge and the founder outcome. Describe Jev as the scoring engine, not the product. Say “batch-ranked” when explaining the API. Avoid claiming complete worldwide coverage or a measured “thousands in seconds” result until the source catalog is broader and a unique-record throughput benchmark is published.
+
+## What the screen proves
+
+The dashboard turns each live scan into a visible market signal: category mix, founder-fit tiers, and deadline runway update with the ranked set. Then the shortlist itself moves into fit order, with score composition and official-source evidence on each opportunity. Surge makes the decision process legible—not just the answer.

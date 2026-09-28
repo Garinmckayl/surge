@@ -13,6 +13,13 @@ import type { FounderProfile, Opportunity, OpportunityType, RankedOpportunity } 
 const filters = ["All opportunities", "Grants", "Accelerators", "Hackathons"] as const;
 type FilterName = (typeof filters)[number];
 
+const scoreFactors = [
+  { key: "projectFit", label: "Project", max: 40, tone: "factor-project" },
+  { key: "eligibility", label: "Eligibility", max: 25, tone: "factor-eligibility" },
+  { key: "effortFit", label: "Effort", max: 15, tone: "factor-effort" },
+  { key: "deadlineRunway", label: "Deadline", max: 20, tone: "factor-deadline" },
+] as const;
+
 function typeClass(type: OpportunityType) {
   return type === "Grant" ? "type-grant" : type === "Accelerator" ? "type-accelerator" : type === "Hackathon" ? "type-hackathon" : "type-program";
 }
@@ -50,6 +57,55 @@ function AnimatedScore({ value }: { value: number }) {
   return <span className="score-number" aria-label={`${value} out of 100`}>{displayValue}</span>;
 }
 
+function OpportunitySignalMap({ items, loading }: { items: RankedOpportunity[]; loading: boolean }) {
+  const types: OpportunityType[] = ["Grant", "Accelerator", "Hackathon", "Startup program"];
+  const typeCounts = types.map((type) => ({ type, count: items.filter((item) => item.type === type).length }));
+  const scoreBands = [
+    { label: "Strong fit", range: "80–100", count: items.filter((item) => item.score >= 80).length, tone: "signal-strong" },
+    { label: "Worth a look", range: "65–79", count: items.filter((item) => item.score >= 65 && item.score < 80).length, tone: "signal-mid" },
+    { label: "Stretch", range: "0–64", count: items.filter((item) => item.score < 65).length, tone: "signal-stretch" },
+  ];
+  const deadlineBands = [
+    { label: "Next 7 days", count: items.filter((item) => deadlineDays(item.deadline) !== null && deadlineDays(item.deadline)! >= 0 && deadlineDays(item.deadline)! <= 7).length, tone: "runway-immediate" },
+    { label: "8–30 days", count: items.filter((item) => deadlineDays(item.deadline) !== null && deadlineDays(item.deadline)! > 7 && deadlineDays(item.deadline)! <= 30).length, tone: "runway-soon" },
+    { label: "Flexible / unknown", count: items.filter((item) => !item.deadline).length, tone: "runway-flexible" },
+  ];
+  const circumference = 2 * Math.PI * 34;
+  let offset = 0;
+  const chartSegments = typeCounts.map((item) => {
+    const length = items.length ? item.count / items.length * circumference : 0;
+    const segment = { ...item, length, offset };
+    offset += length;
+    return segment;
+  });
+  const maxBandCount = Math.max(1, ...scoreBands.map((band) => band.count));
+
+  return <section className={`signal-map ${loading ? "signal-map-scanning" : ""}`} aria-label="Opportunity signal map">
+    <div className="signal-map-heading"><div><span className="signal-kicker"><span /> FIT LANDSCAPE</span><h2>See the signal in the noise.</h2><p>A live snapshot of fit, opportunity type, and deadline runway.</p></div><span className="signal-stamp"><Radar size={14} /> {items.length} in this view</span></div>
+    <div className="signal-map-grid">
+      <div className="signal-card signal-mix-card">
+        <div className="signal-card-title"><span>OPPORTUNITY MIX</span><span>BY TYPE</span></div>
+        <div className="signal-mix-body"><div className="signal-donut-wrap"><svg className="signal-donut" viewBox="0 0 88 88" role="img" aria-label={`${items.length} opportunities across three types`}><circle className="signal-donut-track" cx="44" cy="44" r="34" />{chartSegments.map((segment) => <circle key={segment.type} className={`signal-donut-segment ${typeClass(segment.type)}`} cx="44" cy="44" r="34" strokeDasharray={`${segment.length} ${circumference - segment.length}`} strokeDashoffset={-segment.offset} />)}</svg><div className="signal-donut-center"><strong>{items.length}</strong><span>signals</span></div></div><div className="signal-legend">{chartSegments.map((segment) => <div className="signal-legend-row" key={segment.type}><span className={`signal-legend-dot ${typeClass(segment.type)}`} /><span>{segment.type === "Grant" ? "Grants" : `${segment.type}s`}</span><strong>{segment.count}</strong></div>)}</div></div>
+      </div>
+      <div className="signal-card signal-fit-card">
+        <div className="signal-card-title"><span>FIT DISTRIBUTION</span><span>JEV + SURGE</span></div>
+        <div className="signal-bars">{scoreBands.map((band, index) => <div className={`signal-bar-row ${band.tone}`} key={band.label}><div className="signal-bar-meta"><span>{band.label}<small>{band.range}</small></span><strong>{band.count}</strong></div><div className="signal-bar-track"><span style={{ width: `${band.count / maxBandCount * 100}%`, animationDelay: `${index * 100}ms` }} /></div></div>)}</div>
+        <div className="signal-fit-foot"><Sparkles size={13} /> Ranking is personalized to this founder profile</div>
+      </div>
+      <div className="signal-card signal-runway-card">
+        <div className="signal-card-title"><span>DEADLINE RUNWAY</span><span>UTC</span></div>
+        <div className="runway-list">{deadlineBands.map((band) => <div className={`runway-row ${band.tone}`} key={band.label}><span className="runway-indicator" /><span>{band.label}</span><strong>{band.count}</strong></div>)}</div>
+        <div className="runway-note"><CalendarDays size={13} /> Dates stay visible beside every source</div>
+      </div>
+    </div>
+  </section>;
+}
+
+function deadlineDays(deadline: string | null) {
+  if (!deadline) return null;
+  return Math.ceil((new Date(`${deadline}T23:59:59Z`).getTime() - Date.now()) / 86_400_000);
+}
+
 export default function Home() {
   const [profile, setProfile] = useState<FounderProfile>(defaultProfile);
   const [opportunities, setOpportunities] = useState<Opportunity[]>(demoOpportunities);
@@ -57,13 +113,22 @@ export default function Home() {
   const [saved, setSaved] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterName>("All opportunities");
   const [savedOnly, setSavedOnly] = useState(false);
+  const [deadlineOnly, setDeadlineOnly] = useState(false);
+  const [sortMode, setSortMode] = useState<"fit" | "deadline" | "effort">("fit");
   const [loading, setLoading] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [notice, setNotice] = useState("A source-backed reference set is ready. Scan live sources to rank fresh opportunities.");
   const [profileOpen, setProfileOpen] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [scanStage, setScanStage] = useState<"idle" | "discovering" | "ranking">("idle");
   const listRef = useRef<HTMLDivElement>(null);
   const previousRects = useRef(new Map<string, DOMRect>());
+
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+    const timer = window.setInterval(() => setCooldownSeconds((remaining) => Math.max(0, remaining - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [cooldownSeconds]);
 
   useEffect(() => {
     const restore = () => {
@@ -113,12 +178,21 @@ export default function Home() {
     return scored
       .filter((item) => activeFilter === "All opportunities" || item.type.toLowerCase() === activeFilter.slice(0, -1).toLowerCase())
       .filter((item) => !savedOnly || saved.includes(item.id))
-      .sort((a, b) => b.score - a.score);
-  }, [activeFilter, opportunities, profile, ranked, saved, savedOnly]);
+      .filter((item) => !deadlineOnly || (deadlineDays(item.deadline) !== null && deadlineDays(item.deadline)! >= 0 && deadlineDays(item.deadline)! <= 30))
+      .sort((a, b) => {
+        if (sortMode === "deadline") {
+          const aDays = deadlineDays(a.deadline) ?? Number.POSITIVE_INFINITY;
+          const bDays = deadlineDays(b.deadline) ?? Number.POSITIVE_INFINITY;
+          return aDays - bDays || b.score - a.score;
+        }
+        if (sortMode === "effort") return (a.effortHours ?? Number.POSITIVE_INFINITY) - (b.effortHours ?? Number.POSITIVE_INFINITY) || b.score - a.score;
+        return b.score - a.score;
+      });
+  }, [activeFilter, deadlineOnly, opportunities, profile, ranked, saved, savedOnly, sortMode]);
 
   const liveCount = opportunities.filter((item) => !item.demo).length;
   const topScore = resultItems[0]?.score ?? 0;
-  const fitCount = resultItems.filter((item) => item.score >= 75).length;
+  const fitCount = resultItems.filter((item) => item.score >= 80).length;
 
   useLayoutEffect(() => {
     const list = listRef.current;
@@ -164,9 +238,11 @@ export default function Home() {
   }
 
   async function runScan() {
+    if (cooldownSeconds > 0) return;
     setLoading(true);
     setScanStage("discovering");
     setNotice("Scanning official sources and batching founder-fit decisions…");
+    let retryAfterSeconds = 0;
     try {
       const discoveryResponse = await fetch("/api/discover", {
         method: "POST",
@@ -174,7 +250,13 @@ export default function Home() {
         body: JSON.stringify(profile),
       });
       const discovery = await discoveryResponse.json();
-      if (!discoveryResponse.ok) throw new Error(discovery.error || "Live discovery is unavailable.");
+      if (!discoveryResponse.ok) {
+        if (discoveryResponse.status === 429) {
+          retryAfterSeconds = Math.max(1, Number(discoveryResponse.headers.get("Retry-After")) || 60);
+          setCooldownSeconds(retryAfterSeconds);
+        }
+        throw new Error(discovery.error || "Live discovery is unavailable.");
+      }
       const found = discovery.opportunities as Opportunity[];
       if (!found.length) throw new Error("No official opportunities found for this profile. Try broader focus areas.");
       setOpportunities(found);
@@ -186,17 +268,24 @@ export default function Home() {
         body: JSON.stringify({ profile, opportunities: found }),
       });
       const rankPayload = await rankResponse.json();
-      if (!rankResponse.ok) throw new Error(rankPayload.error || "Jev ranking is unavailable.");
+      if (!rankResponse.ok) {
+        if (rankResponse.status === 429) {
+          retryAfterSeconds = Math.max(1, Number(rankResponse.headers.get("Retry-After")) || 60);
+          setCooldownSeconds(retryAfterSeconds);
+        }
+        throw new Error(rankPayload.error || "Jev ranking is unavailable.");
+      }
       setRanked(rankPayload.opportunities as RankedOpportunity[]);
       const batchCount = Number(rankPayload.metadata?.batchCount || 1);
       const durationSeconds = (Number(rankPayload.metadata?.durationMs || 0) / 1000).toFixed(1);
       setNotice(`${found.length} source-cited candidates · Jev scored ${batchCount} batch${batchCount === 1 ? "" : "es"} in ${durationSeconds}s. Open sources to verify details.`);
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Live scan failed.";
       if (opportunities.some((item) => item.demo)) {
         setRanked([]);
-        setNotice(`${error instanceof Error ? error.message : "Live scan failed."} Showing transparent demo scores instead.`);
+        setNotice(`${message} ${retryAfterSeconds > 0 ? "Your reference list is still available; the live scan button will unlock when the limit resets." : "Showing transparent reference scores instead."}`);
       } else {
-        setNotice(error instanceof Error ? error.message : "Live scan failed. Please try again.");
+        setNotice(message);
       }
     } finally {
       setLoading(false);
@@ -256,7 +345,7 @@ export default function Home() {
       <main className="main-area" id="home">
         <header className="topbar">
           <div className="breadcrumb"><span>Workspace</span><span className="slash">/</span><strong>Founder-fit engine</strong></div>
-          <div className="topbar-right"><div className="live-status"><span className="status-dot" />{liveCount ? "Live search connected" : "Demo workspace"}</div><button className="icon-button" aria-label="Help"><CircleHelp size={18} /></button><div className="top-avatar">{initials(profile.name || "AM")}</div></div>
+          <div className="topbar-right"><div className="live-status"><span className="status-dot" />{liveCount ? "Live results loaded" : "Live scan ready"}</div><button className="icon-button" aria-label="Help"><CircleHelp size={18} /></button><div className="top-avatar">{initials(profile.name || "AM")}</div></div>
         </header>
 
         <div className="content-wrap">
@@ -275,10 +364,12 @@ export default function Home() {
             <div className="stat-card"><div className="stat-icon peach-icon"><Flame size={16} /></div><div><span className="stat-label">STRONG FITS</span><div className="stat-value">{fitCount}<span className="stat-unit"> to explore</span></div></div></div>
           </section>
 
+          <OpportunitySignalMap items={resultItems} loading={loading} />
+
           <section className="opportunities-section">
             <div className="section-heading">
               <div><div className="section-title-line"><h2>Your next moves</h2><span className={`mode-pill ${ranked.length ? "mode-live" : ""}`}><span />{ranked.length ? "SURGE MATCH ENGINE" : "REFERENCE SET"}</span></div><p>Not another directory. A source-backed decision queue for this startup.</p></div>
-              <button className="scan-button" onClick={runScan} disabled={loading}><span className="scan-icon">{loading ? <span className="spinner" /> : <Search size={16} />}</span>{loading ? "Scanning the market…" : "Scan the market"}<ArrowRight size={15} /></button>
+              <button className="scan-button" onClick={runScan} disabled={loading || cooldownSeconds > 0}><span className="scan-icon">{loading ? <span className="spinner" /> : <Search size={16} />}</span>{loading ? "Scanning the market…" : cooldownSeconds > 0 ? `Retry in ${cooldownSeconds >= 60 ? `${Math.floor(cooldownSeconds / 60)}m ${cooldownSeconds % 60}s` : `${cooldownSeconds}s`}` : "Scan the market"}<ArrowRight size={15} /></button>
             </div>
 
             <div className="source-note" aria-live="polite"><span className="note-mark"><CircleHelp size={14} /></span><span>{notice}</span><button aria-label="Dismiss message" onClick={() => setNotice("")}><X size={14} /></button></div>
@@ -286,7 +377,7 @@ export default function Home() {
 
             <div className="filter-row">
               <div className="filter-tabs" role="tablist" aria-label="Opportunity types">{filters.map((filter) => <button role="tab" aria-selected={activeFilter === filter} className={activeFilter === filter ? "filter-active" : ""} key={filter} onClick={() => { setActiveFilter(filter); setSavedOnly(false); }}>{filter}{filter === "All opportunities" && <span>{opportunities.length}</span>}</button>)}</div>
-              <div className="filter-actions"><button className="saved-toggle" onClick={() => { setSavedOnly(!savedOnly); setActiveFilter("All opportunities"); }}><Bookmark size={14} fill={savedOnly ? "currentColor" : "none"} /> Saved <span>{saved.length}</span></button><button className="sort-button"><ArrowDownUp size={14} /> Best fit <ChevronDown size={13} /></button><button className="filter-button" aria-label="Filters"><Filter size={15} /></button></div>
+              <div className="filter-actions"><button className="saved-toggle" onClick={() => { setSavedOnly(!savedOnly); setActiveFilter("All opportunities"); }}><Bookmark size={14} fill={savedOnly ? "currentColor" : "none"} /> Saved <span>{saved.length}</span></button><button className="sort-button" onClick={() => setSortMode((mode) => mode === "fit" ? "deadline" : mode === "deadline" ? "effort" : "fit")} title="Cycle sort: best fit, deadline, application effort"><ArrowDownUp size={14} /> {sortMode === "fit" ? "Best fit" : sortMode === "deadline" ? "Closing soon" : "Least effort"} <ChevronDown size={13} /></button><button className={`filter-button ${deadlineOnly ? "filter-button-active" : ""}`} aria-label="Filter deadlines within 30 days" aria-pressed={deadlineOnly} title={deadlineOnly ? "Showing deadlines within 30 days" : "Filter to deadlines within 30 days"} onClick={() => setDeadlineOnly((active) => !active)}><Filter size={15} /></button></div>
             </div>
 
             <div className={`opportunity-list-stage ${loading ? "is-scanning" : ""}`}>
@@ -315,6 +406,7 @@ function OpportunityCard({ opportunity, rank, saved, onSave }: { opportunity: Ra
       <div className="card-heading-row"><h3>{opportunity.name}</h3><div className={`score-bubble ${opportunity.score >= 80 ? "score-high" : opportunity.score >= 65 ? "score-mid" : "score-low"}`}><AnimatedScore value={opportunity.score} /><span className="score-outof">/100</span></div></div>
       <p className="opportunity-description">{opportunity.description}</p>
       <div className="detail-row"><span><MapPin size={13} />{opportunity.location}</span><span><CalendarDays size={13} />{formatDeadline(opportunity.deadline)}</span>{opportunity.effortHours !== null && <span><Timer size={13} />~{opportunity.effortHours}h effort</span>}{opportunity.funding && <span className="funding-detail"><Sparkles size={13} />{opportunity.funding}</span>}</div>
+      {opportunity.scoreBreakdown && <div className="score-breakdown" aria-label="How each score is composed"><div className="score-breakdown-heading"><span>SURGE FIT COMPOSITION</span><span>{opportunity.score}/100</span></div><div className="score-breakdown-grid">{scoreFactors.map((factor) => { const points = opportunity.scoreBreakdown?.[factor.key] ?? 0; return <div className={"score-factor " + factor.tone} key={factor.key}><div className="score-factor-label"><span>{factor.label}</span><strong>{points}<small>/{factor.max}</small></strong></div><div className="score-factor-track"><span style={{ width: (points / factor.max * 100) + "%" }} /></div></div>; })}</div></div>}
       <div className="reason-panel"><div className="reason-heading"><span className="reason-check"><Check size={11} /></span><strong>Why it ranks here</strong><span className={`reason-engine ${opportunity.scoreSource === "Jev 1.13" ? "reason-jev" : ""}`}>{opportunity.scoreSource}</span></div><div className="reason-chips">{opportunity.reasons.map((reason, index) => <span className="reason-chip" key={`${opportunity.id}-reason-${index}`}>{reason}</span>)}</div>{opportunity.watchouts.length > 0 && <div className="watchout"><CircleHelp size={13} /><span>{opportunity.watchouts[0]}</span></div>}</div>
       <div className="card-bottom"><div className="tags">{opportunity.tags.slice(0, 3).map((tag) => <span key={tag}>{tag}</span>)}</div><a className="source-link" href={opportunity.sourceUrl} target="_blank" rel="noreferrer">View source <ExternalLink size={13} /></a></div>
     </div>

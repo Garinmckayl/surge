@@ -126,7 +126,13 @@ export async function POST(request: Request) {
 
   try {
     const batches = await Promise.all(categories.map((category) => discoverCategory(apiKey, profile, category)));
-    const opportunities = batches.flat().slice(0, 30);
+    const seen = new Set<string>();
+    const opportunities = batches.flat().filter((item) => {
+      const key = `${item.name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()}::${item.organizer.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 30);
     if (!opportunities.length) {
       return NextResponse.json({ error: "No currently open or confirmed upcoming opportunities with verified official-source citations were found. Broaden your focus or try again later." }, { status: 404 });
     }

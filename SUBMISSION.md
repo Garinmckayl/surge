@@ -8,15 +8,25 @@
 **Lane:** Startup  
 **Tags:** `#commercial-potential` `#startup`
 
+**Challenge:** [AWS Builder Center Zero to Shipped](https://builder.aws.com/build/hackathons/e83e84e5-4f4c-383b-bbe9-4a15ac195d55)
+
+**Deadline:** October 2, 2026, 11:59 p.m. PT
+
 **Live demo:** https://surge.arcumet.com
 
-**Recorded walkthrough:** [68-second live demo](docs/surge-demo.mp4)
+**Recorded walkthrough:** [31-second time-compressed live demo](docs/surge-demo.mp4)
 
 ![Surge dashboard preview](docs/surge-dashboard.png)
+
+![Live score breakdown](docs/score-breakdown.png)
 
 ## Short description
 
 Surge is the founder-fit decision engine for the global opportunity market. It searches grants, accelerators, and hackathons, then aligns each candidate to a startup's project, eligibility, location, deadline, and application capacity. Every rank has an official source and a clear reason.
+
+## Elevator pitch
+
+A founder's next grant, accelerator, or hackathon should not be buried in a thousand tabs. Surge turns a startup profile into a source-backed action queue: Jev scores fit, eligibility, and application effort in structured batches; Surge adds deadline runway, explains every rank, and animates the best next moves into focus. We are building the decision engine founders use to spend application hours where they have the strongest shot.
 
 ## Full project story
 
@@ -28,13 +38,12 @@ The scale thesis is simple: a founder should not have to open thousands of progr
 
 Surge is being built for the AWS Builder Center Zero to Shipped challenge itself. The product is the founder-fit decision engine; Jev is the new structured scoring capability under the hood—not the thing we are asking founders to buy.
 
-## 90-second demo outline
+## 31-second demo outline
 
-1. Start with the founder profile: location, stage, project, and weekly application time.
-2. Select **Find live opportunities** and show the scan checking grants, accelerators, and hackathons separately.
-3. Open a result's source; point out the source-backed status and published deadline.
-4. Show the Jev eligibility choice and project/effort scores, then the code-calculated deadline points and total.
-5. Save the strongest result to the pipeline and explain which missing requirement the founder should verify next.
+1. Start with the founder profile and show Surge scanning the live market.
+2. Reveal the signal map: opportunity mix, Jev fit distribution, and deadline runway.
+3. Watch the shortlist reorder; open one result to show its score composition, explanation, and official source.
+4. Save the strongest move and show the founder-specific pipeline.
 
 ## Development process
 
