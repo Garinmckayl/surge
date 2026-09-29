@@ -192,3 +192,11 @@ button{cursor:pointer}
 .source-link{font-size:12px}
 .list-footer{font-size:11px}
 @media(max-width:680px){.card-heading-row h3{font-size:17px}.opportunity-description{font-size:13.5px}.org-name{font-size:11px}.detail-row span{font-size:11px}.reason-heading strong{font-size:11px}.reason-chip{font-size:11px}.watchout{font-size:11px}.tags span{font-size:10px}.source-link{font-size:11px}}
+
+.persona-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:4px}.persona-row .field-label{width:100%;margin:0 0 2px}
+.persona-chip{border:1px solid #34505e;background:#203a4a;color:#cfe0e4;border-radius:99px;padding:5px 9px;font-size:10px;cursor:pointer;transition:background .2s,border-color .2s,transform .2s}.persona-chip:hover{border-color:#b3d96d;transform:translateY(-1px)}.persona-chip.persona-active{background:rgba(217,242,119,.14);border-color:#b3d96d;color:#d9f277}
+.opportunity-card[data-move]:after{content:attr(data-move);position:absolute;top:104px;right:19px;z-index:2;padding:4px 8px;border-radius:99px;font:800 11px 'Manrope',sans-serif;letter-spacing:.2px;pointer-events:none;animation:move-chip 6.5s ease forwards}
+.opportunity-card[data-move-dir="up"]:after{background:#e4f6d3;color:#3f7a2a;box-shadow:0 0 0 1px #b8dc95}
+.opportunity-card[data-move-dir="down"]:after{background:#fbe9df;color:#a5602f;box-shadow:0 0 0 1px #edc4a6}
+@keyframes move-chip{0%{opacity:0;transform:translateY(6px) scale(.85)}8%{opacity:1;transform:none}85%{opacity:1}100%{opacity:0}}
+@media(prefers-reduced-motion:reduce){.opportunity-card[data-move]:after{animation:none}}

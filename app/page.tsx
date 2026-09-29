@@ -29,6 +29,13 @@ function formatDeadline(deadline: string | null) {
   return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(`${deadline}T00:00:00Z`));
 }
 
+const founderPersonas: { label: string; profile: Pick<FounderProfile, "location" | "stage" | "sectors" | "project" | "weeklyHours"> }[] = [
+  { label: "AI SaaS \u00B7 US", profile: { location: "United States", stage: "Pre-seed", sectors: "AI, developer tools, SaaS", project: "An AI agent platform that automates back-office workflows for small businesses.", weeklyHours: 8 } },
+  { label: "Climate \u00B7 Kenya", profile: { location: "Kenya", stage: "Seed", sectors: "Climate, agriculture, clean energy", project: "Solar-powered cold storage that cuts post-harvest food loss for smallholder farmers.", weeklyHours: 12 } },
+  { label: "Fintech \u00B7 India", profile: { location: "India", stage: "Idea", sectors: "Fintech, payments, financial inclusion", project: "UPI-based micro-savings and credit for gig workers without bank histories.", weeklyHours: 5 } },
+  { label: "Health \u00B7 UK", profile: { location: "United Kingdom", stage: "Pre-seed", sectors: "Healthtech, biotech, AI diagnostics", project: "AI-assisted early screening tool that helps clinics catch diabetic eye disease.", weeklyHours: 10 } },
+];
+
 function profileRankKey(profile: FounderProfile) {
   return JSON.stringify({ location: profile.location, stage: profile.stage, sectors: profile.sectors, project: profile.project, weeklyHours: profile.weeklyHours });
 }
@@ -130,6 +137,7 @@ export default function Home() {
   const listRef = useRef<HTMLDivElement>(null);
   const previousRects = useRef(new Map<string, DOMRect>());
   const previousScores = useRef(new Map<string, string>());
+  const previousRanks = useRef(new Map<string, number>());
   const lastRankedProfile = useRef<string | null>(null);
 
   useEffect(() => {
@@ -251,6 +259,7 @@ export default function Home() {
     const previous = previousRects.current;
     const current = new Map<string, DOMRect>();
     const currentScores = new Map<string, string>();
+    const currentRanks = new Map<string, number>();
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     cards.forEach((card, index) => {
@@ -262,6 +271,15 @@ export default function Home() {
       const previousScore = previousScores.current.get(opportunityId);
       current.set(opportunityId, nextRect);
       currentScores.set(opportunityId, nextScore);
+      currentRanks.set(opportunityId, index + 1);
+      const previousRank = previousRanks.current.get(opportunityId);
+      if (previousScore !== undefined && previousScore !== nextScore && previousRank !== undefined) {
+        const scoreDelta = Number(nextScore) - Number(previousScore);
+        const rankDelta = previousRank - (index + 1);
+        card.dataset.move = `${rankDelta > 0 ? "\u25B2" + rankDelta + " \u00B7 " : rankDelta < 0 ? "\u25BC" + -rankDelta + " \u00B7 " : ""}${scoreDelta > 0 ? "+" : ""}${scoreDelta}`;
+        card.dataset.moveDir = scoreDelta >= 0 ? "up" : "down";
+        window.setTimeout(() => { delete card.dataset.move; delete card.dataset.moveDir; }, 6500);
+      }
       if (reducedMotion) return;
 
       card.getAnimations().forEach((animation) => animation.cancel());
@@ -285,6 +303,7 @@ export default function Home() {
 
     previousRects.current = current;
     previousScores.current = currentScores;
+    previousRanks.current = currentRanks;
   }, [resultItems]);
 
   function updateProfile<K extends keyof FounderProfile>(key: K, value: FounderProfile[K]) {
@@ -375,6 +394,7 @@ export default function Home() {
 
         <div className="sidebar-section-label finder-label">YOUR FIT PROFILE <button aria-label="Collapse profile" onClick={() => setProfileOpen(!profileOpen)}><ChevronDown size={13} /></button></div>
         {profileOpen && <div className="profile-card">
+          <div className="persona-row" role="group" aria-label="Try a founder profile"><span className="field-label">Try a founder</span>{founderPersonas.map((persona) => <button type="button" key={persona.label} className={"persona-chip" + (profileRankKey({ ...profile, ...persona.profile }) === profileRankKey(profile) ? " persona-active" : "")} onClick={() => { setProfile((current) => ({ ...current, ...persona.profile })); setProfileEditVersion((version) => version + 1); }}>{persona.label}</button>)}</div>
           <label className="field-label" htmlFor="founder-name">Founder</label>
           <input id="founder-name" value={profile.name} onChange={(event) => updateProfile("name", event.target.value)} />
           <label className="field-label" htmlFor="founder-location">Based in</label>
