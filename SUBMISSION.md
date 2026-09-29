@@ -10,7 +10,8 @@
 
 **Challenge:** [AWS Builder Center Zero to Shipped](https://builder.aws.com/build/hackathons/e83e84e5-4f4c-383b-bbe9-4a15ac195d55)  
 **Deadline:** October 2, 2026, 11:59 p.m. PT  
-**Live app:** https://surge.arcumet.com (public URL on AWS EC2)  
+**Live app:** https://surge.arcumet.com (public URL, AWS EC2 · us-west-2)  
+**Coding agent:** Claude Code (Anthropic, Sonnet 5.5) — connected to AWS via the AWS CLI, [proof below](#proof-the-coding-agent-is-connected-to-aws)  
 **Recorded walkthrough:** [67-second narrated demo](docs/surge-demo.mp4)
 
 ![Surge dashboard](docs/surge-dashboard.png)
@@ -18,6 +19,17 @@
 ## One-line pitch
 
 Surge scores **10,000 grants, accelerators and hackathons against your startup in about nine seconds**, then turns the few that fit into a scheduled four-week application plan — every rank with a source and a reason.
+
+## Measured on the live deployment
+
+| Test | Result |
+| --- | --- |
+| 10,000 records scored | ≈ 9 s (≈ 1,000 records/s), 500 engine batches |
+| 1,000 records, single API call | 3.6 s, 50 batches |
+| Marginal model cost | Below the provider's billing granularity in our tests |
+| Hand-review equivalent (assumes 12 min/record) | ≈ 2,000 hours |
+
+The scale benchmark runs on a **clearly labelled synthetic catalog** so throughput can be measured without hammering real program websites. Real, source-cited programs come from the live scan and from the real sample scan (captured Sep 29, 2026) that loads on first visit. We do not present benchmark records as real programs.
 
 ## The problem
 
@@ -30,17 +42,6 @@ Funding and acceleration are not scarce; *attention* is. A founder with eight ho
 3. **Explains every rank.** A 100-point composition (project fit 40, eligibility 25, effort 15, deadline 20), match reasons, and eligibility/deadline watch-outs, with a link to the organizer's source.
 4. **Turns ranking into action.** A deterministic scheduler places the best fits into the founder's real weekly hours, in deadline order, spanning weeks when a task is larger than one — and says what it left out and why.
 5. **Discovers live.** "Scan the market" searches official organizer pages, keeps only citation-verified results (third-party directories and social sites are rejected), and ranks them on arrival.
-
-## Measured on the live deployment
-
-| Test | Result |
-| --- | --- |
-| 10,000 records scored | ≈ 9 s (≈ 1,000 records/s), 500 engine batches |
-| 1,000 records, single API call | 3.6 s, 50 batches |
-| Marginal model cost | Below the provider's billing granularity in our tests |
-| Hand-review equivalent (assumes 12 min/record) | ≈ 2,000 hours |
-
-The scale benchmark runs on a **clearly labelled synthetic catalog** so throughput can be measured without hammering real program websites. Real, source-cited programs come from the live scan and from the real sample scan (captured Sep 29, 2026) that loads on first visit. We do not present benchmark records as real programs.
 
 ## Why it can win as a business (Commercial Potential)
 
@@ -58,7 +59,22 @@ The scale benchmark runs on a **clearly labelled synthetic catalog** so throughp
 
 ## Development process
 
-The app was built with an AI coding agent working against AWS: the agent inspected the EC2 instance and network rules, configured the restartable service and HTTPS proxy, and verified the public URL. Later iterations added the scale engine, application planner, rebrand, sidebar/typography redesign, and hardening, each verified with automated browser tests against the live site.
+**Agent:** Claude Code (Anthropic, Sonnet 5.5), running inside the same AWS EC2 instance that serves the app and using its configured AWS CLI credentials.
+
+**How the agent helped me ship** — it did the work, and every step was checked against the live site:
+
+1. **Inspected AWS before touching it.** `aws sts get-caller-identity`, `aws ec2 describe-instances` and the security-group rules, plus a DNS check that `surge.arcumet.com` resolves to the instance's public IP.
+2. **Operated the deployment.** A restartable systemd service behind Nginx HTTPS, then `npm run deploy`, which lints, type-checks, builds, restarts the service and verifies the live page and its CSS return 200.
+3. **Measured before claiming.** It benchmarked the deployed API (10,000 records in ≈ 9 s; 1,000 in one call in 3.6 s) and found and fixed its own rate-limit and truncation mistakes along the way.
+4. **Hardened it.** Server-side payload clamping, a rejection list for third-party directories posing as official sources, per-client and daily budgets, a six-hour scan cache.
+5. **Built and verified the product.** Scale engine, founder personas with live re-ranking, the four-week planner, collapsible sidebar and larger type, and the narrated demo — each checked with automated browser tests against the live URL, including a mobile-overflow bug it caught and fixed.
+6. **Kept the record honest.** Benchmark data is labelled synthetic; the sample scan is dated; the README, this page and the demo were updated to match what is really deployed.
+
+## Proof: the coding agent is connected to AWS
+
+![Claude Code running AWS CLI commands against the EC2 instance that serves the live app](docs/aws-agent-proof.png)
+
+Captured in-session by the agent: it authenticates with `aws sts get-caller-identity`, describes the EC2 instance `i-0ed26e1aaa977c11a` (us-west-2, public IP `35.166.228.8`), and shows that `surge.arcumet.com` resolves to that same IP and returns `HTTP 200`. The commits made with the agent carry a `Co-Authored-By: Claude` trailer and are listed by hash. Account ID, IAM user and security group are redacted; the full log is in [`docs/aws-agent-proof.md`](docs/aws-agent-proof.md).
 
 ## Demo outline (67 seconds, narrated)
 
