@@ -56,7 +56,7 @@ Codex CLI helped shape the product, implement and test the Next.js app, and depl
 - Jev 1.13 provides typed eligibility `choice` and project/effort `score` judgments. Surge dispatches candidates in 20-record batches, supports up to 1,000 records per rank request, limits concurrency to four, and returns measured batch count and latency. Deadline points are calculated in application code.
 - Public discovery and ranking endpoints have per-client and daily budgets to cap OpenRouter spend during the demo.
 - Live discovery currently checks grants, accelerators, and hackathons separately and returns up to 30 citation-verified candidates per scan; expanding the maintained source catalog is the path to the full thousands-scale vision.
-- Public API routes apply per-client and daily request budgets to bound OpenRouter and Jev spend.
+- Request payloads are length-clamped server-side before reaching paid model calls, and known third-party directories or social sites are rejected as "official" sources.
 - OpenRouter credentials remain server-side in an ignored, mode-600 runtime file. The browser never receives the key.
 - Demo/reference rows are labelled, and current-cycle details must be verified at the linked source.
 

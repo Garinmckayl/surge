@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { rankDeadline } from "@/lib/rank";
 import type { FounderProfile, Opportunity, RankedOpportunity } from "@/lib/types";
-import { reservePublicApiBudget } from "@/lib/public-api-guard";
+import { cleanOpportunity, cleanProfile, reservePublicApiBudget } from "@/lib/public-api-guard";
 
 export const runtime = "nodejs";
 
@@ -143,9 +143,9 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Invalid ranking request." }, { status: 400 });
   }
-  const profile = body.profile;
-  const opportunities = Array.isArray(body.opportunities) ? body.opportunities : [];
-  if (!profile?.location || !profile.project || opportunities.length === 0) {
+  const profile = cleanProfile(body?.profile);
+  const opportunities = Array.isArray(body?.opportunities) ? body.opportunities.slice(0, MAX_OPPORTUNITIES + 1).map(cleanOpportunity) : [];
+  if (!profile.location || !profile.project || opportunities.length === 0) {
     return NextResponse.json({ error: "A complete founder profile and at least one opportunity are required." }, { status: 400 });
   }
   if (opportunities.length > MAX_OPPORTUNITIES) {

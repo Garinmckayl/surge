@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { FounderProfile, Opportunity, OpportunityType } from "@/lib/types";
-import { reservePublicApiBudget } from "@/lib/public-api-guard";
+import { cleanProfile, reservePublicApiBudget } from "@/lib/public-api-guard";
 
 export const runtime = "nodejs";
 
@@ -14,8 +14,12 @@ function isSafeSource(value: string) {
   }
 }
 
+// Third-party directories and social platforms are never an official application page.
+const aggregatorHosts = ["linkedin.com", "facebook.com", "x.com", "twitter.com", "medium.com", "reddit.com", "youtube.com", "grantedai.com", "fundsforngos.org", "opportunitiesforafricans.com", "shega.co", "devpost.com", "f6s.com", "crunchbase.com"];
+
 function isOfficialSource(sourceUrl: string, organizer: string) {
   const hostname = new URL(sourceUrl).hostname.toLowerCase();
+  if (aggregatorHosts.some((host) => hostname === host || hostname.endsWith(`.${host}`))) return false;
   if (hostname.endsWith(".gov") || hostname.endsWith(".edu")) return true;
   const ignored = new Set(["the", "and", "for", "inc", "llc", "program", "accelerator", "foundation", "company", "group"]);
   const tokens = organizer.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 3 && !ignored.has(token));
@@ -111,7 +115,7 @@ export async function POST(request: Request) {
 
   let profile: FounderProfile;
   try {
-    profile = await request.json();
+    profile = cleanProfile(await request.json());
   } catch {
     return NextResponse.json({ error: "Invalid founder profile." }, { status: 400 });
   }

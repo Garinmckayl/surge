@@ -1,3 +1,4 @@
+import type { FounderProfile, Opportunity } from "@/lib/types";
 type Counter = { used: number; expiresAt: number };
 type GuardResult = { allowed: true } | { allowed: false; retryAfterSeconds: number };
 
@@ -47,4 +48,37 @@ export function reservePublicApiBudget(
   counters.set(dailyKey, daily);
   counters.set(clientKey, client);
   return { allowed: true };
+}
+
+const clip = (value: unknown, max: number) => (typeof value === "string" ? value.trim().slice(0, max) : "");
+
+// Bounds untrusted payloads before they are forwarded to paid model calls.
+export function cleanProfile(input: Partial<FounderProfile> | undefined): FounderProfile {
+  const hours = Number(input?.weeklyHours);
+  return {
+    name: clip(input?.name, 80),
+    location: clip(input?.location, 120),
+    stage: clip(input?.stage, 40),
+    sectors: clip(input?.sectors, 240),
+    project: clip(input?.project, 1200),
+    weeklyHours: Number.isFinite(hours) ? Math.max(0, Math.min(168, hours)) : 0,
+  };
+}
+
+export function cleanOpportunity(input: Partial<Opportunity>): Opportunity {
+  const number = (value: unknown) => (typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null);
+  return {
+    ...(input as Opportunity),
+    id: clip(input.id, 160),
+    name: clip(input.name, 200),
+    organizer: clip(input.organizer, 200),
+    description: clip(input.description, 600),
+    location: clip(input.location, 200),
+    eligibility: clip(input.eligibility, 600),
+    sourceUrl: clip(input.sourceUrl, 500),
+    funding: input.funding ? clip(input.funding, 200) : null,
+    deadline: typeof input.deadline === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.deadline) ? input.deadline : null,
+    effortHours: number(input.effortHours),
+    tags: Array.isArray(input.tags) ? input.tags.slice(0, 5).map((tag) => clip(tag, 40)) : [],
+  };
 }
