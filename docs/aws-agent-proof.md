@@ -74,6 +74,12 @@ eip = await call_boto3(service_name="ec2", operation_name="DescribeAddresses", r
 }
 ```
 
+```
+$ aws cloudtrail lookup-events   # AWS's audit log: the same two calls, recorded as invoked by the AWS MCP Server
+2026-09-29T14:44:41Z  ec2.amazonaws.com  DescribeInstances  invokedBy=aws-mcp.amazonaws.com
+2026-09-29T14:44:42Z  ec2.amazonaws.com  DescribeAddresses  invokedBy=aws-mcp.amazonaws.com
+```
+
 ## B. Supporting evidence: AWS CLI, DNS and AWS's own audit log
 
 ```
@@ -121,6 +127,7 @@ $ git log --grep='Co-Authored-By: Claude' --format=%h   # commits authored with 
 ## What this shows
 
 - **The agent is connected to AWS through the AWS MCP Server**: Claude Code's health check reports it connected, and the agent issued real API calls (`DescribeInstances`, `DescribeAddresses`) through it that succeeded.
+- **AWS itself recorded those calls as coming from the AWS MCP Server** (`invokedBy=aws-mcp.amazonaws.com` in CloudTrail), so the connection is confirmed by AWS's audit log, not only by the agent's output.
 - **It is the same account and machine as the live app**: the instance the MCP call returned has the Elastic IP that `surge.arcumet.com` resolves to, and the site returns HTTP 200 from it.
 - **AWS independently recorded the agent's CLI calls** in CloudTrail, from the instance's own IP, with the same CLI version shown in `aws --version`.
 - **The agent operates the deployment**: `npm run deploy` lints, type-checks, builds, restarts the systemd service and verifies the live page.

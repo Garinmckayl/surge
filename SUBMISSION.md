@@ -112,9 +112,9 @@ Surge is live and public today on AWS; the measurements above are its proof poin
 
 ![Claude Code connected to AWS through the AWS MCP Server, with supporting CLI and CloudTrail evidence](docs/aws-agent-proof.png)
 
-**A — the connection itself.** Claude Code's health check reports `aws-mcp … ✔ Connected`; the agent then called `DescribeInstances` and `DescribeAddresses` through the AWS MCP Server, and both returned `success`. The instance it read (`i-0ed26e1aaa977c11a`, us-west-2, `35.166.228.8`, Elastic IP attached) is the one `surge.arcumet.com` resolves to, and the site returns `HTTP 200` from it.
+**A — the connection itself.** Claude Code's health check reports `aws-mcp … ✔ Connected`; the agent then called `DescribeInstances` and `DescribeAddresses` through the AWS MCP Server, and both returned `success`. **AWS CloudTrail independently logged those two calls as `invokedBy=aws-mcp.amazonaws.com`.** The instance it read (`i-0ed26e1aaa977c11a`, us-west-2, `35.166.228.8`, Elastic IP attached) is the one `surge.arcumet.com` resolves to, and the site returns `HTTP 200` from it.
 
-**B — supporting evidence.** The AWS CLI authenticates (`sts get-caller-identity`); **AWS CloudTrail independently recorded the agent's CLI calls** from the instance's own IP; and every commit made with the agent carries a `Co-Authored-By: Claude` trailer, listed by hash. Account ID, IAM user and security group are redacted; the full log is in [`docs/aws-agent-proof.md`](docs/aws-agent-proof.md).
+**B — supporting evidence.** The AWS CLI authenticates (`sts get-caller-identity`); **CloudTrail also recorded the agent's CLI calls** from the instance's own IP; and every commit made with the agent carries a `Co-Authored-By: Claude` trailer, listed by hash. Account ID, IAM user and security group are redacted; the full log is in [`docs/aws-agent-proof.md`](docs/aws-agent-proof.md).
 
 ## Demo outline (67 seconds, narrated)
 
