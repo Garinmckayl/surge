@@ -9,53 +9,75 @@
 **Tags:** `#commercial-potential` `#startup`
 
 **Challenge:** [AWS Builder Center Zero to Shipped](https://builder.aws.com/build/hackathons/e83e84e5-4f4c-383b-bbe9-4a15ac195d55)  
-**Deadline:** October 2, 2026, 11:59 p.m. PT  
 **Live app:** https://surge.arcumet.com (public URL, AWS EC2 · us-west-2)  
 **Coding agent:** Claude Code (Anthropic, Sonnet 5.5) — connected to AWS via the AWS CLI, [proof below](#proof-the-coding-agent-is-connected-to-aws)  
 **Recorded walkthrough:** [67-second narrated demo](docs/surge-demo.mp4)
 
 ![Surge dashboard](docs/surge-dashboard.png)
 
-## One-line pitch
+## Meet Amara
 
-Surge scores **10,000 grants, accelerators and hackathons against your startup in about nine seconds**, then turns the few that fit into a scheduled four-week application plan — every rank with a source and a reason.
+*Amara is a composite of the founders Surge is built for — illustrative, not a real customer.*
+
+Amara is building solar-powered cold storage for smallholder farmers near Nairobi. She has **eight hours a week** that are not the product.
+
+Somewhere in a market of thousands of grants, accelerators and hackathons is the program that fits a Kenyan cold-storage startup. Around it sit dozens that look the same and are closed to her — wrong country, wrong stage, wrong focus. Every wrong guess costs her a week she doesn't have. Directories list what exists; none of them tell her what to do *this week*. So she guesses, and the founders outside the big hubs guess worst.
+
+Amara describes her company to Surge once. In about nine seconds it scores 10,000 opportunities against her — eligibility, project fit, effort and deadline for every one — and the field rearranges around her. A three-day climate hackathon in Nairobi jumps to **80/100**. A Mott Foundation program for smallholder farmers lands at **72**, flagged *"eligibility uncertain — confirm before applying."* A UNDP GreenTech launchpad scores **68**. Each rank shows how its 100 points were earned and links to the organizer's own page.
+
+Then Surge does what a directory never does: it fits the best of them into her eight hours a week and hands her a **four-week application plan**.
+
+A fintech founder in Bengaluru opens the same market and sees a completely different top of the list. That is the point: **same market, different decisions.**
 
 ## Measured on the live deployment
+
+**Speed**
 
 | Test | Result |
 | --- | --- |
 | 10,000 records scored | ≈ 9 s (≈ 1,000 records/s), 500 engine batches |
-| 1,000 records, single API call | 3.6 s, 50 batches |
+| 1,000 records in a single API call | 3.6 s, 50 batches |
 | Marginal model cost | Below the provider's billing granularity in our tests |
-| Hand-review equivalent (assumes 12 min/record) | ≈ 2,000 hours |
+| Hand-review equivalent (assumes 12 min per record) | ≈ 2,000 hours |
 
-The scale benchmark runs on a **clearly labelled synthetic catalog** so throughput can be measured without hammering real program websites. Real, source-cited programs come from the live scan and from the real sample scan (captured Sep 29, 2026) that loads on first visit. We do not present benchmark records as real programs.
+**Personalization** — for each founder we scored the same 10,000 records and inspected the top 50:
 
-## The problem
+| Founder | Top 50 in the right region | Top 50 in the right sector | Both (vs. 1–2% of the catalog) |
+| --- | --- | --- | --- |
+| Climate · Kenya | 100% | 100% | 100% (49× lift) |
+| Fintech · India | 100% | 86% | 86% (104× lift) |
+| Health · UK | 98% | 80% | 78% (78× lift) |
+| AI SaaS · US | 98% | 100% | 98% (103× lift) |
 
-Funding and acceleration are not scarce; *attention* is. A founder with eight hours a week cannot read thousands of program pages, and the founders who lose most are the ones outside the well-networked hubs: a climate founder in Nairobi, a fintech founder in Bengaluru. Every misdirected application burns 8–40 hours that could have gone into the product. Directories list what exists. Nobody tells a founder **what to do this week**.
+The founders' top-50 lists overlap by **0–6%**: the engine is not returning one generic list.
 
-## What Surge does
+*Honest limits:* the benchmark catalog is **synthetic and labelled** so throughput and personalization can be measured without hammering real program websites; in it, region and sector are explicit fields, so this shows the engine honours a founder's constraints — not that it judges every real program correctly. Real, source-cited programs come from the live scan and from the dated real sample scan (Sep 29, 2026) that loads on first visit. Benchmark records are never presented as real programs.
 
-1. **Analyzes the market at scale.** The Surge Engine scores every record on project fit, eligibility, application effort and deadline runway. It is not a search box over a list — it is a decision for every record.
-2. **Personalizes instantly.** Switch the founder — Climate · Kenya, Fintech · India, Health · UK, AI SaaS · US — and the whole ranking rearranges: cards animate to new positions with `▲/▼` rank and score-delta chips. The same 10,000-record catalog produces a different top five for each founder.
-3. **Explains every rank.** A 100-point composition (project fit 40, eligibility 25, effort 15, deadline 20), match reasons, and eligibility/deadline watch-outs, with a link to the organizer's source.
-4. **Turns ranking into action.** A deterministic scheduler places the best fits into the founder's real weekly hours, in deadline order, spanning weeks when a task is larger than one — and says what it left out and why.
-5. **Discovers live.** "Scan the market" searches official organizer pages, keeps only citation-verified results (third-party directories and social sites are rejected), and ranks them on arrival.
+## What is technically new
 
-## Why it can win as a business (Commercial Potential)
+- **Typed decisions, not generated memos.** Eligibility is a three-way choice with probabilities; project fit and application effort are five-level scored rubrics. Compact typed answers are comparable across records and batchable, which is what makes ~1,000 records/second possible.
+- **The model judges; code owns the arithmetic.** The engine decides what needs judgment (fit, eligibility, effort). Deterministic code owns what must be exact — deadline runway, the 100-point composition, and scheduling — so every point is attributable and nothing is a black-box number.
+- **Citation-gated discovery.** A live scan is accepted only if the cited page matches and its host plausibly belongs to the named organizer; third-party directories and social sites are rejected as "official" sources. Unknown dates and effort are shown as unknown, never guessed.
+- **Ranking becomes action.** A scheduler places the best fits into the founder's real weekly hours in deadline order, splits work that spans weeks, and states what it left out and why.
+- **Built to be safe in public.** Per-client and daily budgets, server-side payload clamping, a six-hour scan cache, and credentials that never reach the browser.
 
-- **Wedge:** founders pay in time, so the first product is free-to-try with a Pro tier for continuous monitoring, deadline alerts and calendar sync (calendar and CSV export already ship).
-- **Distribution loop:** accelerators, funders and ecosystems want *qualified* applicants. Surge's fit score is a routing layer they can sponsor, and the same engine sits behind a program-side dashboard.
-- **Moat:** the compounding asset is a maintained, verified catalog plus outcome data on which founders got in — something no static directory collects.
-- **Global by design:** eligibility and location are first-class inputs, so the value is highest exactly where discovery is hardest.
+## Community and market impact
+
+**The scale of the problem, in Amara's terms.** Hand-reviewing 10,000 programs at ~12 minutes each is ≈ 2,000 hours. At Amara's eight hours a week, that is **about five years** — so she never does it, and the best-fit program stays invisible. Surge does it in nine seconds and gives her back the hours to *apply*.
+
+- **Who it helps first:** early-stage founders with little spare time and thin networks — the ones for whom one misdirected application is the most expensive. Eligibility and location are first-class inputs, so value is highest exactly where discovery is hardest: outside the hubs where opportunities already find you.
+- **Business model:** free to try; a Pro tier for continuous monitoring, deadline alerts and calendar sync (calendar and CSV export already ship). Accelerators, funders and ecosystems want *qualified* applicants, so the same engine becomes a sponsored routing layer on the program side — the party with budget pays to reach founders who actually fit.
+- **Moat:** a maintained, verified catalog plus outcome data on which founders got in — something no static directory collects.
+- **What success looks like:** applications submitted per founder-hour, share of applications sent to programs the founder was eligible for, and acceptance rate. We instrument these first.
+- **Next 30 days:** onboard a first cohort of founders through two or three startup ecosystems, replace the sample catalog with a continuously refreshed verified one, and add deadline alerts.
+
+Surge is live and public today on AWS; the measurements above are its proof points, and the founder cohort is the next milestone.
 
 ## Architecture
 
 - **Next.js on AWS EC2**, Nginx terminating HTTPS in front of a systemd-managed service; `npm run deploy` lints, builds, restarts and verifies the live page.
 - **Surge Engine** — a structured, typed decision model served through OpenRouter's Decisions API. Records are scored in 20-record batches, four in parallel; each request accepts up to 1,000 records, and the UI streams larger runs as concurrent chunks. Deadline runway is deterministic code, not a model guess.
-- **Live discovery** uses OpenRouter web search; results are accepted only when a matching URL citation exists and the host plausibly belongs to the named organizer.
-- **Guardrails:** per-client and daily budgets, server-side payload clamping, a six-hour cache for identical scans, and credentials that never reach the browser.
+- **Live discovery** uses OpenRouter web search, gated by the citation checks above.
 
 ## Development process
 
