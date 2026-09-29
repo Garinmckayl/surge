@@ -14,7 +14,7 @@
 
 **Live demo:** https://surge.arcumet.com
 
-**Recorded walkthrough:** [31-second time-compressed live demo](docs/surge-demo.mp4)
+**Recorded walkthrough:** [28-second live demo](docs/surge-demo.mp4)
 
 ![Surge dashboard preview](docs/surge-dashboard.png)
 
@@ -38,12 +38,12 @@ The scale thesis is simple: a founder should not have to open thousands of progr
 
 Surge is being built for the AWS Builder Center Zero to Shipped challenge itself. The product is the founder-fit decision engine; Jev is the new structured scoring capability under the hood—not the thing we are asking founders to buy.
 
-## 31-second demo outline
+## 28-second demo outline
 
-1. Start with the founder profile and show Surge scanning the live market.
-2. Reveal the signal map: opportunity mix, Jev fit distribution, and deadline runway.
-3. Watch the shortlist reorder; open one result to show its score composition, explanation, and official source.
-4. Save the strongest move and show the founder-specific pipeline.
+1. Open Surge: a real, source-cited scan is already ranked by Jev against the default founder profile.
+2. Pick "Climate · Kenya": the whole grid re-ranks — climate grants jump up (`▲7 · +45`) while AI accelerators fall — with the signal map updating alongside.
+3. Switch to Fintech · India, Health · UK, and back: each founder gets a different action queue from the same catalog.
+4. Save the strongest moves and export them as a calendar or CSV pipeline.
 
 ## Development process
 
@@ -56,6 +56,8 @@ Codex CLI helped shape the product, implement and test the Next.js app, and depl
 - Jev 1.13 provides typed eligibility `choice` and project/effort `score` judgments. Surge dispatches candidates in 20-record batches, supports up to 1,000 records per rank request, limits concurrency to four, and returns measured batch count and latency. Deadline points are calculated in application code.
 - Public discovery and ranking endpoints have per-client and daily budgets to cap OpenRouter spend during the demo.
 - Live discovery currently checks grants, accelerators, and hackathons separately and returns up to 30 citation-verified candidates per scan; expanding the maintained source catalog is the path to the full thousands-scale vision.
+- First visit loads a real citation-verified sample scan (captured Sep 29, 2026, labelled as such) and ranks it with Jev immediately; identical live scans are cached for 6 hours so repeat clicks cost nothing.
+- Saved opportunities export to an `.ics` calendar (3-day reminders) or CSV.
 - Request payloads are length-clamped server-side before reaching paid model calls, and known third-party directories or social sites are rejected as "official" sources.
 - OpenRouter credentials remain server-side in an ignored, mode-600 runtime file. The browser never receives the key.
 - Demo/reference rows are labelled, and current-cycle details must be verified at the linked source.

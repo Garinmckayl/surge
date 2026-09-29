@@ -2,12 +2,13 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowDownUp, ArrowRight, Bookmark, CalendarDays, Check, ChevronDown, CircleHelp,
-  Compass, ExternalLink, Filter, Flame, Layers3, MapPin, Radar,
+  ArrowDownUp, ArrowRight, Bookmark, CalendarDays, CalendarPlus, Check, ChevronDown, CircleHelp,
+  Compass, Download, ExternalLink, Filter, Flame, Layers3, MapPin, Radar,
   Search, Settings2, Sparkles, Timer, TrendingUp, X,
 } from "lucide-react";
 import { demoOpportunities, defaultProfile } from "@/lib/demo";
 import { rankForDemo } from "@/lib/rank";
+import { SAMPLE_SCAN_DATE, sampleScan } from "@/lib/sample-scan";
 import type { FounderProfile, Opportunity, OpportunityType, RankedOpportunity } from "@/lib/types";
 
 const filters = ["All opportunities", "Grants", "Accelerators", "Hackathons"] as const;
@@ -35,6 +36,35 @@ const founderPersonas: { label: string; profile: Pick<FounderProfile, "location"
   { label: "Fintech \u00B7 India", profile: { location: "India", stage: "Idea", sectors: "Fintech, payments, financial inclusion", project: "UPI-based micro-savings and credit for gig workers without bank histories.", weeklyHours: 5 } },
   { label: "Health \u00B7 UK", profile: { location: "United Kingdom", stage: "Pre-seed", sectors: "Healthtech, biotech, AI diagnostics", project: "AI-assisted early screening tool that helps clinics catch diabetic eye disease.", weeklyHours: 10 } },
 ];
+
+function isSampleSet(items: Opportunity[]) {
+  return items.length > 0 && items.every((item) => item.id.startsWith("sample-"));
+}
+
+function download(filename: string, type: string, content: string) {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportCalendar(items: RankedOpportunity[]) {
+  const escape = (text: string) => text.replace(/[\\;,]/g, (char) => "\\" + char).replace(/\n/g, "\\n");
+  const events = items.filter((item) => item.deadline).map((item) => {
+    const day = item.deadline!.replaceAll("-", "");
+    return ["BEGIN:VEVENT", `UID:${item.id}@surge.arcumet.com`, `DTSTAMP:${new Date().toISOString().replace(/[-:]|\.\d{3}/g, "")}`, `DTSTART;VALUE=DATE:${day}`, `SUMMARY:${escape(`Deadline: ${item.name}`)}`, `DESCRIPTION:${escape(`Surge fit ${item.score}/100 \u00B7 ${item.organizer}\nVerify at ${item.sourceUrl}`)}`, `URL:${item.sourceUrl}`, "BEGIN:VALARM", "TRIGGER:-P3D", "ACTION:DISPLAY", "DESCRIPTION:Application deadline in 3 days", "END:VALARM", "END:VEVENT"].join("\r\n");
+  });
+  download("surge-pipeline.ics", "text/calendar", ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Surge//Founder pipeline//EN", ...events, "END:VCALENDAR"].join("\r\n"));
+  return events.length;
+}
+
+function exportCsv(items: RankedOpportunity[]) {
+  const cell = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+  const rows = [["Rank", "Name", "Type", "Organizer", "Fit score", "Deadline", "Effort hours", "Funding", "Source"], ...items.map((item, index) => [index + 1, item.name, item.type, item.organizer, item.score, item.deadline ?? "", item.effortHours ?? "", item.funding ?? "", item.sourceUrl])];
+  download("surge-pipeline.csv", "text/csv", rows.map((row) => row.map(cell).join(",")).join("\n"));
+}
 
 function profileRankKey(profile: FounderProfile) {
   return JSON.stringify({ location: profile.location, stage: profile.stage, sectors: profile.sectors, project: profile.project, weeklyHours: profile.weeklyHours });
@@ -158,11 +188,19 @@ export default function Home() {
       if (storedSaved) {
         try { setSaved(JSON.parse(storedSaved)); } catch { localStorage.removeItem("surge-saved"); }
       }
+      let restored: Opportunity[] = [];
       if (storedOpportunities) {
-        try { setOpportunities(JSON.parse(storedOpportunities)); } catch { localStorage.removeItem("surge-opportunities"); }
+        try { restored = JSON.parse(storedOpportunities); } catch { localStorage.removeItem("surge-opportunities"); }
       }
-      if (storedRanked) {
-        try { setRanked(JSON.parse(storedRanked)); } catch { localStorage.removeItem("surge-ranked"); }
+      if (Array.isArray(restored) && restored.length && !restored.every((item) => item.demo)) {
+        setOpportunities(restored);
+        if (storedRanked) {
+          try { setRanked(JSON.parse(storedRanked)); } catch { localStorage.removeItem("surge-ranked"); }
+        }
+      } else {
+        // First visit: start from a real, cited sample scan and let Jev rank it against the profile.
+        setOpportunities(sampleScan);
+        setProfileEditVersion(1);
       }
       setHydrated(true);
     };
@@ -198,7 +236,7 @@ export default function Home() {
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setProfileReranking(true);
-      setNotice("Founder profile changed · Jev is re-aligning every live opportunity…");
+      setNotice(isSampleSet(opportunities) ? "Jev is ranking a real sample scan against your founder profile…" : "Founder profile changed · Jev is re-aligning every live opportunity…");
       try {
         const response = await fetch("/api/rank", {
           method: "POST",
@@ -215,7 +253,7 @@ export default function Home() {
         const newlyRanked = payload.opportunities as RankedOpportunity[];
         lastRankedProfile.current = profileSignature;
         setRanked(newlyRanked);
-        setNotice("Preferences applied · Jev re-aligned " + newlyRanked.length + " live opportunities to your profile.");
+        setNotice(isSampleSet(opportunities) ? `Jev ranked ${newlyRanked.length} opportunities from a real scan (${SAMPLE_SCAN_DATE}). Change the profile or pick a founder to watch them re-rank, or scan the market for fresh results.` : "Preferences applied · Jev re-aligned " + newlyRanked.length + " live opportunities to your profile.");
       } catch (error) {
         if (!cancelled) setNotice(error instanceof Error ? error.message + " The previous live ranking is preserved." : "Jev could not update the ranking. The previous live ranking is preserved.");
       } finally {
@@ -421,7 +459,7 @@ export default function Home() {
       <main className="main-area" id="home">
         <header className="topbar">
           <div className="breadcrumb"><span>Workspace</span><span className="slash">/</span><strong>Founder-fit engine</strong></div>
-          <div className="topbar-right"><div className="live-status"><span className="status-dot" />{liveCount ? "Live results loaded" : "Live scan ready"}</div><button className="icon-button" aria-label="Help"><CircleHelp size={18} /></button><div className="top-avatar">{initials(profile.name || "AM")}</div></div>
+          <div className="topbar-right"><div className="live-status"><span className="status-dot" />{liveCount ? (isSampleSet(opportunities) ? "Sample scan loaded" : "Live results loaded") : "Live scan ready"}</div><button className="icon-button" aria-label="Help"><CircleHelp size={18} /></button><div className="top-avatar">{initials(profile.name || "AM")}</div></div>
         </header>
 
         <div className="content-wrap">
@@ -444,7 +482,7 @@ export default function Home() {
 
           <section className="opportunities-section">
             <div className="section-heading">
-              <div><div className="section-title-line"><h2>Your next moves</h2><span className={`mode-pill ${ranked.length ? "mode-live" : ""}`}><span />{ranked.length ? "SURGE MATCH ENGINE" : "REFERENCE SET"}</span></div><p>Not another directory. A source-backed decision queue for this startup.</p></div>
+              <div><div className="section-title-line"><h2>Your next moves</h2><span className={`mode-pill ${ranked.length ? "mode-live" : ""}`}><span />{isSampleSet(opportunities) ? `REAL SCAN · ${SAMPLE_SCAN_DATE.toUpperCase()}` : ranked.length ? "SURGE MATCH ENGINE" : "REFERENCE SET"}</span></div><p>Not another directory. A source-backed decision queue for this startup.</p></div>
               <button className="scan-button" onClick={runScan} disabled={loading || profileReranking || cooldownSeconds > 0}><span className="scan-icon">{loading || profileReranking ? <span className="spinner" /> : <Search size={16} />}</span>{profileReranking ? "Realigning your matches…" : loading ? "Scanning the market…" : cooldownSeconds > 0 ? `Retry in ${cooldownSeconds >= 60 ? `${Math.floor(cooldownSeconds / 60)}m ${cooldownSeconds % 60}s` : `${cooldownSeconds}s`}` : "Scan the market"}<ArrowRight size={15} /></button>
             </div>
 
@@ -453,7 +491,7 @@ export default function Home() {
 
             <div className="filter-row">
               <div className="filter-tabs" role="tablist" aria-label="Opportunity types">{filters.map((filter) => <button role="tab" aria-selected={activeFilter === filter} className={activeFilter === filter ? "filter-active" : ""} key={filter} onClick={() => { setActiveFilter(filter); setSavedOnly(false); }}>{filter}{filter === "All opportunities" && <span>{opportunities.length}</span>}</button>)}</div>
-              <div className="filter-actions"><button className="saved-toggle" onClick={() => { setSavedOnly(!savedOnly); setActiveFilter("All opportunities"); }}><Bookmark size={14} fill={savedOnly ? "currentColor" : "none"} /> Saved <span>{saved.length}</span></button><button className="sort-button" onClick={() => setSortMode((mode) => mode === "fit" ? "deadline" : mode === "deadline" ? "effort" : "fit")} title="Cycle sort: best fit, deadline, application effort"><ArrowDownUp size={14} /> {sortMode === "fit" ? "Best fit" : sortMode === "deadline" ? "Closing soon" : "Least effort"} <ChevronDown size={13} /></button><button className={`filter-button ${deadlineOnly ? "filter-button-active" : ""}`} aria-label="Filter deadlines within 30 days" aria-pressed={deadlineOnly} title={deadlineOnly ? "Showing deadlines within 30 days" : "Filter to deadlines within 30 days"} onClick={() => setDeadlineOnly((active) => !active)}><Filter size={15} /></button></div>
+              <div className="filter-actions">{saved.length > 0 && <><button className="sort-button" title="Download saved deadlines as a calendar file" onClick={() => { const pipeline = (ranked.length ? ranked : opportunities.map((item) => rankForDemo(item, profile))).filter((item) => saved.includes(item.id)); const count = exportCalendar(pipeline); setNotice(count ? `Exported ${count} deadline${count === 1 ? "" : "s"} to surge-pipeline.ics with 3-day reminders.` : "None of your saved opportunities has a published deadline to add to a calendar."); }}><CalendarPlus size={14} /> .ics</button><button className="sort-button" title="Download your saved pipeline as CSV" onClick={() => exportCsv((ranked.length ? ranked : opportunities.map((item) => rankForDemo(item, profile))).filter((item) => saved.includes(item.id)))}><Download size={14} /> CSV</button></>}<button className="saved-toggle" onClick={() => { setSavedOnly(!savedOnly); setActiveFilter("All opportunities"); }}><Bookmark size={14} fill={savedOnly ? "currentColor" : "none"} /> Saved <span>{saved.length}</span></button><button className="sort-button" onClick={() => setSortMode((mode) => mode === "fit" ? "deadline" : mode === "deadline" ? "effort" : "fit")} title="Cycle sort: best fit, deadline, application effort"><ArrowDownUp size={14} /> {sortMode === "fit" ? "Best fit" : sortMode === "deadline" ? "Closing soon" : "Least effort"} <ChevronDown size={13} /></button><button className={`filter-button ${deadlineOnly ? "filter-button-active" : ""}`} aria-label="Filter deadlines within 30 days" aria-pressed={deadlineOnly} title={deadlineOnly ? "Showing deadlines within 30 days" : "Filter to deadlines within 30 days"} onClick={() => setDeadlineOnly((active) => !active)}><Filter size={15} /></button></div>
             </div>
 
             <div className={`opportunity-list-stage ${loading || profileReranking ? "is-scanning" : ""}`}>

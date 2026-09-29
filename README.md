@@ -6,19 +6,26 @@ Surge is a founder-fit decision engine for the global opportunity market—not a
 
 [Open Surge](https://surge.arcumet.com) — hosted on AWS EC2. See [SUBMISSION.md](SUBMISSION.md) for the Builder Center project story and demo outline.
 
-**Live demo walkthrough:** [31-second recording](docs/surge-demo.mp4)
+**Live demo walkthrough:** [28-second recording](docs/surge-demo.mp4)
 
 ![Surge dashboard preview](docs/surge-dashboard.png)
 
 ## What works
 
+- **Instant, real first impression:** first visit loads a snapshot of real, citation-verified opportunities and Jev ranks them against the founder profile within seconds — no waiting on a scan.
+- **Watch the AI re-rank:** one-click founder personas (AI SaaS · US, Climate · Kenya, Fintech · India, Health · UK) or any profile edit re-runs Jev on the whole grid; cards animate into their new positions with `▲/▼` rank-movement and score-delta chips.
+- **Pipeline export:** save opportunities, then download deadlines as a calendar (`.ics`, 3-day reminders) or the whole pipeline as CSV.
 - A founder profile for location, stage, focus areas, project summary, and weekly application time.
 - Live web discovery through OpenRouter's web search tool, constrained to official opportunity sources.
 - Typed Jev decisions for eligibility (`choice`), project fit (`score`), and effort fit (`score`) run in 20-record batches; each rank request accepts up to 1,000 candidates with bounded concurrency. Deadline runway stays deterministic.
-- Public OpenRouter routes have per-client and daily budgets to limit spend.
+- Public OpenRouter routes have per-client and daily budgets, server-side payload clamping, and a 6-hour cache for identical scans to limit spend.
 - A live signal map visualizes opportunity mix, fit tiers, and deadline runway; preference edits re-run Jev on live results, then animate cards into their new grid positions. Sorting and near-term deadline filtering stay interactive.
 - A visible 100-point score breakdown with match reasons and eligibility/deadline watchouts.
 - Local demo listings, a transparent rules-based demo score, and a saved pipeline that work without an API key. Demo entries are references, not claims that a cycle is open.
+
+## Deploy
+
+`npm run deploy` lints, type-checks, builds, restarts the systemd service, and verifies the live page and CSS return 200 (building under a running server breaks its asset hashes, so the two steps run back to back).
 
 ## Run locally
 

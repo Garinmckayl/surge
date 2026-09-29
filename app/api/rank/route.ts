@@ -88,8 +88,9 @@ function scoreBatch(profile: FounderProfile, opportunities: Opportunity[], answe
     const fit = answers[`item_${index}_project_fit`];
     const effort = answers[`item_${index}_effort_fit`];
     const eligiblePoints = eligibility?.choice === "likely_eligible" ? 25 : eligibility?.choice === "uncertain" ? 13 : 0;
-    const fitPoints = Math.max(0, Math.min(4, fit?.score ?? 2)) * 10;
-    const effortPoints = Math.max(0, Math.min(4, effort?.score ?? 2)) * 3.75;
+    const round1 = (value: number) => Math.round(value * 10) / 10;
+    const fitPoints = round1(Math.max(0, Math.min(4, fit?.score ?? 2)) * 10);
+    const effortPoints = round1(Math.max(0, Math.min(4, effort?.score ?? 2)) * 3.75);
     const deadline = rankDeadline(item.deadline);
     const score = Math.round(Math.max(0, Math.min(100, eligiblePoints + fitPoints + effortPoints + deadline.points)));
     const reasons = [

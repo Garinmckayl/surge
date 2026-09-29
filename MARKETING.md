@@ -30,7 +30,7 @@ Try the live build at https://surge.arcumet.com
 
 ## Demo recording
 
-[Watch the 31-second time-compressed live walkthrough](docs/surge-demo.mp4). It shows the public app scanning current sources, Jev ranking the shortlist, and a founder saving a next move.
+[Watch the 28-second live walkthrough](docs/surge-demo.mp4). It shows the public app scanning current sources, Jev ranking the shortlist, and a founder saving a next move.
 
 ## Demo narration
 

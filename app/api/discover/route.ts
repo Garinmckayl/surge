@@ -6,6 +6,15 @@ export const runtime = "nodejs";
 
 const categories: OpportunityType[] = ["Grant", "Accelerator", "Hackathon"];
 
+// Identical profiles reuse a recent scan: repeat clicks cost nothing and never hit the public budget.
+const CACHE_TTL_MS = 6 * 60 * 60_000;
+type CachedScan = { at: number; opportunities: Opportunity[] };
+const scanCache = ((globalThis as typeof globalThis & { surgeScanCache?: Map<string, CachedScan> }).surgeScanCache ??= new Map());
+
+function cacheKey(profile: FounderProfile) {
+  return [profile.location, profile.stage, profile.sectors, profile.project].map((part) => part.toLowerCase().replace(/\s+/g, " ").trim()).join("|");
+}
+
 function isSafeSource(value: string) {
   try {
     return new URL(value).protocol === "https:";
@@ -123,6 +132,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Add a location, project summary, and focus areas first." }, { status: 400 });
   }
 
+  const key = cacheKey(profile);
+  const cached = scanCache.get(key);
+  if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
+    return NextResponse.json({ opportunities: cached.opportunities, checkedAt: new Date(cached.at).toISOString(), cached: true });
+  }
+
   const budget = reservePublicApiBudget(request, "discover", categories.length, 9, 60, 10 * 60_000);
   if (!budget.allowed) {
     return NextResponse.json({ error: "The public scan budget is temporarily exhausted. Please try again later." }, { status: 429, headers: { "Retry-After": String(budget.retryAfterSeconds) } });
@@ -140,6 +155,8 @@ export async function POST(request: Request) {
     if (!opportunities.length) {
       return NextResponse.json({ error: "No currently open or confirmed upcoming opportunities with verified official-source citations were found. Broaden your focus or try again later." }, { status: 404 });
     }
+    if (scanCache.size >= 100) scanCache.delete(scanCache.keys().next().value as string);
+    scanCache.set(key, { at: Date.now(), opportunities });
     return NextResponse.json({ opportunities, checkedAt: new Date().toISOString() });
   } catch {
     return NextResponse.json({ error: "Live search is unavailable or returned invalid results. Try again shortly." }, { status: 502 });
