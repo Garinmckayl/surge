@@ -62,11 +62,12 @@ The app was built with an AI coding agent working against AWS: the agent inspect
 
 ## Demo outline (67 seconds, narrated)
 
-1. **The problem** — founders don't lack opportunities, they lack the time to find the right ones.
-2. **Surge, ranked for you** — real, source-cited opportunities already ranked for the default founder.
-3. **10,000 opportunities in ~9 seconds** — live counter, throughput and fit distribution; ≈ 2,000 hours of reading avoided.
-4. **Change the founder** — Fintech · India gets a completely different top five from the same market.
-5. **The grid re-ranks live** — `▲/▼` chips show how far each card moved (e.g. `▲9 · +57`).
-6. **Live scan** — Surge searches official organizer pages and keeps only citation-verified sources.
-7. **From ranking to action** — a four-week plan scheduled around the founder's real weekly hours.
-8. **Surge. Stop searching. Start applying.** — live on AWS.
+1. **Hook (0–6s)** — 10,000 opportunities scored for the startup live, counter racing from 0 to 10,000 in about nine seconds.
+2. **The problem** — founders don't lack opportunities, they lack the time to find the right ones.
+3. **Surge, ranked for you** — real, source-cited opportunities already ranked for the default founder.
+4. **How it scores** — every record on eligibility, project fit, effort and deadline; ≈ 2,000 hours of reading avoided.
+5. **Change the founder** — Fintech · India gets a completely different top five from the same market.
+6. **The grid re-ranks live** — `▲/▼` chips show how far each card moved (e.g. `▲9 · +57`).
+7. **Live scan** — Surge searches official organizer pages and keeps only citation-verified sources.
+8. **From ranking to action** — a four-week plan scheduled around the founder's real weekly hours.
+9. **Close** — Surge. Stop searching. Start applying. Live on AWS.
