@@ -10,7 +10,7 @@
 
 **Challenge:** [AWS Builder Center Zero to Shipped](https://builder.aws.com/build/hackathons/e83e84e5-4f4c-383b-bbe9-4a15ac195d55)  
 **Live app:** https://surge.arcumet.com (public URL, AWS EC2 · us-west-2)  
-**Coding agent:** Claude Code (Anthropic, Sonnet 5.5) — connected to AWS via the AWS CLI, [proof below](#proof-the-coding-agent-is-connected-to-aws)  
+**Coding agent:** Claude Code (Anthropic, Sonnet 5.5) — connected to AWS through the **Agent Toolkit for AWS (AWS MCP Server)**, [proof below](#proof-the-coding-agent-is-connected-to-aws)  
 **Recorded walkthrough:** [67-second narrated demo](docs/surge-demo.mp4)
 
 ![Surge dashboard](docs/surge-dashboard.png)
@@ -85,18 +85,36 @@ Surge is live and public today on AWS; the measurements above are its proof poin
 
 **How the agent helped me ship** — it did the work, and every step was checked against the live site:
 
-1. **Inspected AWS before touching it.** `aws sts get-caller-identity`, `aws ec2 describe-instances` and the security-group rules, plus a DNS check that `surge.arcumet.com` resolves to the instance's public IP.
-2. **Operated the deployment.** A restartable systemd service behind Nginx HTTPS, then `npm run deploy`, which lints, type-checks, builds, restarts the service and verifies the live page and its CSS return 200.
+1. **Inspected AWS before touching it** — through the AWS MCP Server and the AWS CLI: the running instance, its Elastic IP and security-group rules, plus a DNS check that `surge.arcumet.com` resolves to that IP.
+2. **Operated the deployment.** A restartable systemd service behind Nginx HTTPS (with an HTTP→HTTPS redirect), then `npm run deploy`, which lints, type-checks, builds, restarts the service and verifies the live page and its CSS return 200.
 3. **Measured before claiming.** It benchmarked the deployed API (10,000 records in ≈ 9 s; 1,000 in one call in 3.6 s) and found and fixed its own rate-limit and truncation mistakes along the way.
 4. **Hardened it.** Server-side payload clamping, a rejection list for third-party directories posing as official sources, per-client and daily budgets, a six-hour scan cache.
 5. **Built and verified the product.** Scale engine, founder personas with live re-ranking, the four-week planner, collapsible sidebar and larger type, and the narrated demo — each checked with automated browser tests against the live URL, including a mobile-overflow bug it caught and fixed.
 6. **Kept the record honest.** Benchmark data is labelled synthetic; the sample scan is dated; the README, this page and the demo were updated to match what is really deployed.
 
+## AWS services and coding agent used
+
+| Service | How Surge uses it |
+| --- | --- |
+| **Amazon EC2** (m7i.xlarge, us-west-2b) | Runs the Next.js app (a systemd service) and Nginx; serves the public URL |
+| **Elastic IP** | Stable public address that `surge.arcumet.com` resolves to |
+| **Amazon EBS** (gp3) | Root volume for the instance |
+| **Amazon VPC security groups** | Public HTTP/HTTPS ingress to the instance |
+| **AWS IAM** | Credentials the agent uses, and permission to call the AWS MCP Server |
+| **AWS MCP Server** (Agent Toolkit for AWS) | The connection between the coding agent and AWS |
+| **AWS CloudTrail** | AWS's own audit log of the agent's API calls |
+
+*Not AWS, stated plainly:* DNS is Cloudflare (DNS-only, not proxied), the TLS certificate is Let's Encrypt, and the Surge Engine and live web search are reached through OpenRouter.
+
+**Coding agent:** Claude Code, connected to AWS through the **Agent Toolkit for AWS**: the AWS MCP Server is registered with Claude Code using the `mcp-proxy-for-aws` SigV4 route, which signs requests with the instance's AWS credentials. The agent used that connection to read the instance that serves the app.
+
 ## Proof: the coding agent is connected to AWS
 
-![Claude Code running AWS CLI commands against the EC2 instance that serves the live app](docs/aws-agent-proof.png)
+![Claude Code connected to AWS through the AWS MCP Server, with supporting CLI and CloudTrail evidence](docs/aws-agent-proof.png)
 
-Captured in-session by the agent: it authenticates with `aws sts get-caller-identity`, describes the EC2 instance `i-0ed26e1aaa977c11a` (us-west-2, public IP `35.166.228.8`), and shows that `surge.arcumet.com` resolves to that same IP and returns `HTTP 200`. The commits made with the agent carry a `Co-Authored-By: Claude` trailer and are listed by hash. Account ID, IAM user and security group are redacted; the full log is in [`docs/aws-agent-proof.md`](docs/aws-agent-proof.md).
+**A — the connection itself.** Claude Code's health check reports `aws-mcp … ✔ Connected`; the agent then called `DescribeInstances` and `DescribeAddresses` through the AWS MCP Server, and both returned `success`. The instance it read (`i-0ed26e1aaa977c11a`, us-west-2, `35.166.228.8`, Elastic IP attached) is the one `surge.arcumet.com` resolves to, and the site returns `HTTP 200` from it.
+
+**B — supporting evidence.** The AWS CLI authenticates (`sts get-caller-identity`); **AWS CloudTrail independently recorded the agent's CLI calls** from the instance's own IP; and every commit made with the agent carries a `Co-Authored-By: Claude` trailer, listed by hash. Account ID, IAM user and security group are redacted; the full log is in [`docs/aws-agent-proof.md`](docs/aws-agent-proof.md).
 
 ## Demo outline (67 seconds, narrated)
 
