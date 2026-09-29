@@ -1,64 +1,69 @@
-# AWS Builder Center — submission draft
+# AWS Builder Center — submission
 
 ## Project
 
-**Surge — Find the next opportunity worth your time**
+**Surge — Analyze the whole opportunity market. Act on the few that fit.**
 
 **Category:** Commercial Potential  
 **Lane:** Startup  
 **Tags:** `#commercial-potential` `#startup`
 
-**Challenge:** [AWS Builder Center Zero to Shipped](https://builder.aws.com/build/hackathons/e83e84e5-4f4c-383b-bbe9-4a15ac195d55)
+**Challenge:** [AWS Builder Center Zero to Shipped](https://builder.aws.com/build/hackathons/e83e84e5-4f4c-383b-bbe9-4a15ac195d55)  
+**Deadline:** October 2, 2026, 11:59 p.m. PT  
+**Live app:** https://surge.arcumet.com (public URL on AWS EC2)  
+**Recorded walkthrough:** [40-second live demo](docs/surge-demo.mp4)
 
-**Deadline:** October 2, 2026, 11:59 p.m. PT
+![Surge dashboard](docs/surge-dashboard.png)
 
-**Live demo:** https://surge.arcumet.com
+## One-line pitch
 
-**Recorded walkthrough:** [28-second live demo](docs/surge-demo.mp4)
+Surge scores **10,000 grants, accelerators and hackathons against your startup in about nine seconds**, then turns the few that fit into a scheduled four-week application plan — every rank with a source and a reason.
 
-![Surge dashboard preview](docs/surge-dashboard.png)
+## The problem
 
-![Live score breakdown](docs/score-breakdown.png)
+Funding and acceleration are not scarce; *attention* is. A founder with eight hours a week cannot read thousands of program pages, and the founders who lose most are the ones outside the well-networked hubs: a climate founder in Nairobi, a fintech founder in Bengaluru. Every misdirected application burns 8–40 hours that could have gone into the product. Directories list what exists. Nobody tells a founder **what to do this week**.
 
-## Short description
+## What Surge does
 
-Surge is the founder-fit decision engine for the global opportunity market. It searches grants, accelerators, and hackathons, then aligns each candidate to a startup's project, eligibility, location, deadline, and application capacity. Every rank has an official source and a clear reason.
+1. **Analyzes the market at scale.** The Surge Engine scores every record on project fit, eligibility, application effort and deadline runway. It is not a search box over a list — it is a decision for every record.
+2. **Personalizes instantly.** Switch the founder — Climate · Kenya, Fintech · India, Health · UK, AI SaaS · US — and the whole ranking rearranges: cards animate to new positions with `▲/▼` rank and score-delta chips. The same 10,000-record catalog produces a different top five for each founder.
+3. **Explains every rank.** A 100-point composition (project fit 40, eligibility 25, effort 15, deadline 20), match reasons, and eligibility/deadline watch-outs, with a link to the organizer's source.
+4. **Turns ranking into action.** A deterministic scheduler places the best fits into the founder's real weekly hours, in deadline order, spanning weeks when a task is larger than one — and says what it left out and why.
+5. **Discovers live.** "Scan the market" searches official organizer pages, keeps only citation-verified results (third-party directories and social sites are rejected), and ranks them on arrival.
 
-## Elevator pitch
+## Measured on the live deployment
 
-A founder's next grant, accelerator, or hackathon should not be buried in a thousand tabs. Surge turns a startup profile into a source-backed action queue: Jev scores fit, eligibility, and application effort in structured batches; Surge adds deadline runway, explains every rank, and animates the best next moves into focus. We are building the decision engine founders use to spend application hours where they have the strongest shot.
+| Test | Result |
+| --- | --- |
+| 10,000 records scored | ≈ 9 s (≈ 1,000 records/s), 500 engine batches |
+| 1,000 records, single API call | 3.6 s, 50 batches |
+| Marginal model cost | Below the provider's billing granularity in our tests |
+| Hand-review equivalent (assumes 12 min/record) | ≈ 2,000 hours |
 
-## Full project story
+The scale benchmark runs on a **clearly labelled synthetic catalog** so throughput can be measured without hammering real program websites. Real, source-cited programs come from the live scan and from the real sample scan (captured Sep 29, 2026) that loads on first visit. We do not present benchmark records as real programs.
 
-Opportunity directories answer what exists. Surge answers the more valuable question: what should this startup pursue next?
+## Why it can win as a business (Commercial Potential)
 
-A founder profile becomes the scoring lens. Surge discovers candidate grants, accelerators, and hackathons from official sources. Jev evaluates project fit, eligibility, and application effort with structured choices and scores; Surge adds deterministic deadline runway and produces a source-backed action queue. The throughput unlock is the format: compact typed decisions, batched across candidates—not a long generated memo for each link. No generic summary, no untraceable score—each opportunity comes with the evidence and the reason it ranks where it does.
+- **Wedge:** founders pay in time, so the first product is free-to-try with a Pro tier for continuous monitoring, deadline alerts and calendar sync (calendar and CSV export already ship).
+- **Distribution loop:** accelerators, funders and ecosystems want *qualified* applicants. Surge's fit score is a routing layer they can sponsor, and the same engine sits behind a program-side dashboard.
+- **Moat:** the compounding asset is a maintained, verified catalog plus outcome data on which founders got in — something no static directory collects.
+- **Global by design:** eligibility and location are first-class inputs, so the value is highest exactly where discovery is hardest.
 
-The scale thesis is simple: a founder should not have to open thousands of program pages one by one. Surge is designed to batch-rank a much larger global catalog; Jev decisions run in 20-record batches, while the live demo proves the cited-discovery-to-ranked-action loop. The current web scan returns up to 30 verified candidates per pass, and we will publish throughput claims only after measuring the larger catalog.
+## Architecture
 
-Surge is being built for the AWS Builder Center Zero to Shipped challenge itself. The product is the founder-fit decision engine; Jev is the new structured scoring capability under the hood—not the thing we are asking founders to buy.
-
-## 28-second demo outline
-
-1. Open Surge: a real, source-cited scan is already ranked by Jev against the default founder profile.
-2. Pick "Climate · Kenya": the whole grid re-ranks — climate grants jump up (`▲7 · +45`) while AI accelerators fall — with the signal map updating alongside.
-3. Switch to Fintech · India, Health · UK, and back: each founder gets a different action queue from the same catalog.
-4. Save the strongest moves and export them as a calendar or CSV pipeline.
+- **Next.js on AWS EC2**, Nginx terminating HTTPS in front of a systemd-managed service; `npm run deploy` lints, builds, restarts and verifies the live page.
+- **Surge Engine** — a structured, typed decision model served through OpenRouter's Decisions API. Records are scored in 20-record batches, four in parallel; each request accepts up to 1,000 records, and the UI streams larger runs as concurrent chunks. Deadline runway is deterministic code, not a model guess.
+- **Live discovery** uses OpenRouter web search; results are accepted only when a matching URL citation exists and the host plausibly belongs to the named organizer.
+- **Guardrails:** per-client and daily budgets, server-side payload clamping, a six-hour cache for identical scans, and credentials that never reach the browser.
 
 ## Development process
 
-Codex CLI helped shape the product, implement and test the Next.js app, and deploy it to EC2 using the machine's configured AWS CLI credentials. The agent inspected the existing instance and network rules, configured a restartable service and Nginx HTTPS proxy, then verified the live public URL.
+The app was built with an AI coding agent working against AWS: the agent inspected the EC2 instance and network rules, configured the restartable service and HTTPS proxy, and verified the public URL. Later iterations added the scale engine, application planner, rebrand, sidebar/typography redesign, and hardening, each verified with automated browser tests against the live site.
 
-## Technical notes
+## Demo outline (40 seconds)
 
-- Next.js app deployed on an AWS EC2 instance; Nginx terminates HTTPS and proxies to a systemd-managed Next.js service.
-- OpenRouter web search supplies current opportunity research; the app accepts only matching URL-citation annotations and checks that the cited hostname plausibly belongs to the named organizer.
-- Jev 1.13 provides typed eligibility `choice` and project/effort `score` judgments. Surge dispatches candidates in 20-record batches, supports up to 1,000 records per rank request, limits concurrency to four, and returns measured batch count and latency. Deadline points are calculated in application code.
-- Public discovery and ranking endpoints have per-client and daily budgets to cap OpenRouter spend during the demo.
-- Live discovery currently checks grants, accelerators, and hackathons separately and returns up to 30 citation-verified candidates per scan; expanding the maintained source catalog is the path to the full thousands-scale vision.
-- First visit loads a real citation-verified sample scan (captured Sep 29, 2026, labelled as such) and ranks it with Jev immediately; identical live scans are cached for 6 hours so repeat clicks cost nothing.
-- Saved opportunities export to an `.ics` calendar (3-day reminders) or CSV.
-- Request payloads are length-clamped server-side before reaching paid model calls, and known third-party directories or social sites are rejected as "official" sources.
-- OpenRouter credentials remain server-side in an ignored, mode-600 runtime file. The browser never receives the key.
-- Demo/reference rows are labelled, and current-cycle details must be verified at the linked source.
-
+1. Open Surge: a real scan is already ranked for the default founder.
+2. Run **10,000 opportunities** — watch the counter, throughput and fit distribution fill live.
+3. Switch to **Fintech · India** and run again — a different top five.
+4. Jump to the grid: switch to **Climate · Kenya** and watch the cards re-rank with `▲/▼` chips.
+5. Scroll to the plan: **Health · UK** reschedules the four weeks around a new best-fit list.

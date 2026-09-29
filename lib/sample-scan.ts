@@ -1,7 +1,7 @@
 import type { Opportunity } from "@/lib/types";
 
 // Real, citation-verified results captured from a live Surge scan. Shown on first visit so the
-// Jev re-ranking demo works instantly; the "Scan the market" button always fetches fresh results.
+// Surge re-ranking demo works instantly; the "Scan the market" button always fetches fresh results.
 export const SAMPLE_SCAN_DATE = "Sep 29, 2026";
 
 export const sampleScan: Opportunity[] = [

@@ -39,7 +39,7 @@ export type RankedOpportunity = Opportunity & {
   scoreLabel: string;
   reasons: string[];
   watchouts: string[];
-  scoreSource: "Jev 1.13" | "Rules-based demo";
+  scoreSource: "Surge Engine" | "Rules-based demo";
   scoreBreakdown?: ScoreBreakdown;
   confidence?: number;
   probability?: number;

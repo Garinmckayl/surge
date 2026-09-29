@@ -94,9 +94,9 @@ function scoreBatch(profile: FounderProfile, opportunities: Opportunity[], answe
     const deadline = rankDeadline(item.deadline);
     const score = Math.round(Math.max(0, Math.min(100, eligiblePoints + fitPoints + effortPoints + deadline.points)));
     const reasons = [
-      `Jev project-fit score: ${Number(fit?.score ?? 2).toFixed(1)} / 4.`,
+      `Surge project-fit score: ${Number(fit?.score ?? 2).toFixed(1)} / 4.`,
       `Eligibility judgment: ${(eligibility?.choice || "uncertain").replaceAll("_", " ")} (${Math.round((eligibility?.confidence ?? 0) * 100)}% confidence).`,
-      `Jev effort-fit score: ${Number(effort?.score ?? 2).toFixed(1)} / 4 against ${profile.weeklyHours} hours available per week.`,
+      `Surge effort-fit score: ${Number(effort?.score ?? 2).toFixed(1)} / 4 against ${profile.weeklyHours} hours available per week.`,
       deadline.reason,
     ];
     const watchouts = [
@@ -111,7 +111,7 @@ function scoreBatch(profile: FounderProfile, opportunities: Opportunity[], answe
       scoreLabel: score >= 80 ? "Strong fit" : score >= 65 ? "Worth a look" : "Stretch",
       reasons,
       watchouts,
-      scoreSource: "Jev 1.13",
+      scoreSource: "Surge Engine",
       scoreBreakdown: { projectFit: fitPoints, eligibility: eligiblePoints, effortFit: effortPoints, deadlineRunway: deadline.points },
       confidence: fit?.confidence,
       probability: eligibility?.probabilities?.[eligibility.choice || ""],
@@ -126,19 +126,19 @@ async function rankBatch(apiKey: string, profile: FounderProfile, opportunities:
     body: JSON.stringify(decisionRequest(profile, opportunities)),
     signal: AbortSignal.timeout(60_000),
   });
-  if (!response.ok) throw new Error("Jev batch request failed.");
+  if (!response.ok) throw new Error("Surge batch request failed.");
 
   const payload = await response.json();
   const answers = payload.answers as Record<string, DecisionAnswer> | undefined;
-  if (!answers) throw new Error("Jev returned an unexpected response.");
+  if (!answers) throw new Error("Surge returned an unexpected response.");
   return scoreBatch(profile, opportunities, answers);
 }
 
 export async function POST(request: Request) {
   const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) return NextResponse.json({ error: "Add OPENROUTER_API_KEY to enable Jev rankings." }, { status: 503 });
+  if (!apiKey) return NextResponse.json({ error: "Add OPENROUTER_API_KEY to enable Surge rankings." }, { status: 503 });
 
-  let body: { profile?: FounderProfile; opportunities?: Opportunity[] };
+  let body: { profile?: FounderProfile; opportunities?: Opportunity[]; mode?: string };
   try {
     body = await request.json();
   } catch {
@@ -158,9 +158,9 @@ export async function POST(request: Request) {
   for (let index = 0; index < opportunities.length; index += BATCH_SIZE) {
     batches.push(opportunities.slice(index, index + BATCH_SIZE));
   }
-  const budget = reservePublicApiBudget(request, "rank", batches.length, 50, 60, 60 * 60_000);
+  const budget = reservePublicApiBudget(request, "rank", batches.length, 2000, 20_000, 60 * 60_000);
   if (!budget.allowed) {
-    return NextResponse.json({ error: "The public Jev budget is temporarily exhausted. Please try again later." }, { status: 429, headers: { "Retry-After": String(budget.retryAfterSeconds) } });
+    return NextResponse.json({ error: "The public Surge budget is temporarily exhausted. Please try again later." }, { status: 429, headers: { "Retry-After": String(budget.retryAfterSeconds) } });
   }
 
   const rankedBatches = new Array<RankedOpportunity[]>(batches.length);
@@ -176,12 +176,17 @@ export async function POST(request: Request) {
     });
     await Promise.all(workers);
   } catch {
-    return NextResponse.json({ error: "Jev could not complete all ranking batches. Retry with fewer opportunities." }, { status: 502 });
+    return NextResponse.json({ error: "Surge could not complete all ranking batches. Retry with fewer opportunities." }, { status: 502 });
   }
 
+  const ranked = rankedBatches.flat();
+  // Compact mode: scores only, so large catalogs do not ship every reason string back to the browser.
+  const payloadOpportunities = body.mode === "scores"
+    ? ranked.map(({ id, name, type, organizer, score, scoreLabel }) => ({ id, name, type, organizer, score, scoreLabel }))
+    : ranked;
   return NextResponse.json({
-    opportunities: rankedBatches.flat(),
-    model: "typesafe/jev-1.13",
+    opportunities: payloadOpportunities,
+    model: "Surge Engine",
     metadata: {
       opportunityCount: opportunities.length,
       batchSize: BATCH_SIZE,

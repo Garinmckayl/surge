@@ -3,12 +3,14 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownUp, ArrowRight, Bookmark, CalendarDays, CalendarPlus, Check, ChevronDown, CircleHelp,
-  Compass, Download, ExternalLink, Filter, Flame, Layers3, MapPin, Radar,
+  Compass, Download, Gauge, PanelLeftClose, PanelLeftOpen, ExternalLink, Filter, Flame, Layers3, MapPin, Radar,
   Search, Settings2, Sparkles, Timer, TrendingUp, X,
 } from "lucide-react";
 import { demoOpportunities, defaultProfile } from "@/lib/demo";
 import { rankForDemo } from "@/lib/rank";
 import { SAMPLE_SCAN_DATE, sampleScan } from "@/lib/sample-scan";
+import ActionPlan from "@/app/components/ActionPlan";
+import ScaleEngine from "@/app/components/ScaleEngine";
 import type { FounderProfile, Opportunity, OpportunityType, RankedOpportunity } from "@/lib/types";
 
 const filters = ["All opportunities", "Grants", "Accelerators", "Hackathons"] as const;
@@ -129,7 +131,7 @@ function OpportunitySignalMap({ items, loading }: { items: RankedOpportunity[]; 
         <div className="signal-mix-body"><div className="signal-donut-wrap"><svg className="signal-donut" viewBox="0 0 88 88" role="img" aria-label={`${items.length} opportunities across three types`}><circle className="signal-donut-track" cx="44" cy="44" r="34" />{chartSegments.map((segment) => <circle key={segment.type} className={`signal-donut-segment ${typeClass(segment.type)}`} cx="44" cy="44" r="34" strokeDasharray={`${segment.length} ${circumference - segment.length}`} strokeDashoffset={-segment.offset} />)}</svg><div className="signal-donut-center"><strong>{items.length}</strong><span>signals</span></div></div><div className="signal-legend">{chartSegments.map((segment) => <div className="signal-legend-row" key={segment.type}><span className={`signal-legend-dot ${typeClass(segment.type)}`} /><span>{segment.type === "Grant" ? "Grants" : `${segment.type}s`}</span><strong>{segment.count}</strong></div>)}</div></div>
       </div>
       <div className="signal-card signal-fit-card">
-        <div className="signal-card-title"><span>FIT DISTRIBUTION</span><span>JEV + SURGE</span></div>
+        <div className="signal-card-title"><span>FIT DISTRIBUTION</span><span>SURGE ENGINE</span></div>
         <div className="signal-bars">{scoreBands.map((band, index) => <div className={`signal-bar-row ${band.tone}`} key={band.label}><div className="signal-bar-meta"><span>{band.label}<small>{band.range}</small></span><strong>{band.count}</strong></div><div className="signal-bar-track"><span style={{ width: `${band.count / maxBandCount * 100}%`, animationDelay: `${index * 100}ms` }} /></div></div>)}</div>
         <div className="signal-fit-foot"><Sparkles size={13} /> Ranking is personalized to this founder profile</div>
       </div>
@@ -160,6 +162,8 @@ export default function Home() {
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [profileReranking, setProfileReranking] = useState(false);
   const [profileEditVersion, setProfileEditVersion] = useState(0);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [analyzedRecords, setAnalyzedRecords] = useState(0);
   const [notice, setNotice] = useState("A source-backed reference set is ready. Scan live sources to rank fresh opportunities.");
   const [profileOpen, setProfileOpen] = useState(true);
   const [hydrated, setHydrated] = useState(false);
@@ -178,6 +182,7 @@ export default function Home() {
 
   useEffect(() => {
     const restore = () => {
+      setSidebarCollapsed(localStorage.getItem("surge-sidebar") === "collapsed");
       const storedProfile = localStorage.getItem("surge-profile");
       const storedSaved = localStorage.getItem("surge-saved");
       const storedOpportunities = localStorage.getItem("surge-opportunities");
@@ -198,7 +203,7 @@ export default function Home() {
           try { setRanked(JSON.parse(storedRanked)); } catch { localStorage.removeItem("surge-ranked"); }
         }
       } else {
-        // First visit: start from a real, cited sample scan and let Jev rank it against the profile.
+        // First visit: start from a real, cited sample scan and let Surge rank it against the profile.
         setOpportunities(sampleScan);
         setProfileEditVersion(1);
       }
@@ -206,6 +211,11 @@ export default function Home() {
     };
     window.requestAnimationFrame(restore);
   }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    localStorage.setItem("surge-sidebar", sidebarCollapsed ? "collapsed" : "open");
+  }, [hydrated, sidebarCollapsed]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -236,7 +246,7 @@ export default function Home() {
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setProfileReranking(true);
-      setNotice(isSampleSet(opportunities) ? "Jev is ranking a real sample scan against your founder profile…" : "Founder profile changed · Jev is re-aligning every live opportunity…");
+      setNotice(isSampleSet(opportunities) ? "Surge is ranking a real sample scan against your founder profile…" : "Founder profile changed · Surge is re-aligning every live opportunity…");
       try {
         const response = await fetch("/api/rank", {
           method: "POST",
@@ -247,15 +257,15 @@ export default function Home() {
         const payload = await response.json();
         if (!response.ok) {
           if (response.status === 429 && !cancelled) setCooldownSeconds(Math.max(1, Number(response.headers.get("Retry-After")) || 60));
-          throw new Error(payload.error || "Jev could not update the ranking.");
+          throw new Error(payload.error || "Surge could not update the ranking.");
         }
         if (cancelled) return;
         const newlyRanked = payload.opportunities as RankedOpportunity[];
         lastRankedProfile.current = profileSignature;
         setRanked(newlyRanked);
-        setNotice(isSampleSet(opportunities) ? `Jev ranked ${newlyRanked.length} opportunities from a real scan (${SAMPLE_SCAN_DATE}). Change the profile or pick a founder to watch them re-rank, or scan the market for fresh results.` : "Preferences applied · Jev re-aligned " + newlyRanked.length + " live opportunities to your profile.");
+        setNotice(isSampleSet(opportunities) ? `Surge ranked ${newlyRanked.length} opportunities from a real scan (${SAMPLE_SCAN_DATE}). Change the profile or pick a founder to watch them re-rank, or scan the market for fresh results.` : "Preferences applied · Surge re-aligned " + newlyRanked.length + " live opportunities to your profile.");
       } catch (error) {
-        if (!cancelled) setNotice(error instanceof Error ? error.message + " The previous live ranking is preserved." : "Jev could not update the ranking. The previous live ranking is preserved.");
+        if (!cancelled) setNotice(error instanceof Error ? error.message + " The previous live ranking is preserved." : "Surge could not update the ranking. The previous live ranking is preserved.");
       } finally {
         if (!cancelled) setProfileReranking(false);
       }
@@ -268,8 +278,10 @@ export default function Home() {
     };
   }, [cooldownSeconds, hydrated, loading, opportunities, profile, profileEditVersion]);
 
+  const allScored = useMemo(() => ranked.length ? ranked : opportunities.map((item) => rankForDemo(item, profile)), [opportunities, profile, ranked]);
+
   const resultItems = useMemo(() => {
-    const scored = ranked.length ? ranked : opportunities.map((item) => rankForDemo(item, profile));
+    const scored = allScored;
     return scored
       .filter((item) => activeFilter === "All opportunities" || item.type.toLowerCase() === activeFilter.slice(0, -1).toLowerCase())
       .filter((item) => !savedOnly || saved.includes(item.id))
@@ -283,7 +295,7 @@ export default function Home() {
         if (sortMode === "effort") return (a.effortHours ?? Number.POSITIVE_INFINITY) - (b.effortHours ?? Number.POSITIVE_INFINITY) || b.score - a.score;
         return b.score - a.score;
       });
-  }, [activeFilter, deadlineOnly, opportunities, profile, ranked, saved, savedOnly, sortMode]);
+  }, [activeFilter, allScored, deadlineOnly, saved, savedOnly, sortMode]);
 
   const liveCount = opportunities.filter((item) => !item.demo).length;
   const topScore = resultItems[0]?.score ?? 0;
@@ -373,7 +385,7 @@ export default function Home() {
       if (!found.length) throw new Error("No official opportunities found for this profile. Try broader focus areas.");
       setOpportunities(found);
       setScanStage("ranking");
-      setNotice(`Surge found ${found.length} cited candidates. Jev is aligning them to this startup…`);
+      setNotice(`Found ${found.length} source-cited candidates. Surge Engine is scoring them against your startup…`);
       const rankResponse = await fetch("/api/rank", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -385,13 +397,13 @@ export default function Home() {
           retryAfterSeconds = Math.max(1, Number(rankResponse.headers.get("Retry-After")) || 60);
           setCooldownSeconds(retryAfterSeconds);
         }
-        throw new Error(rankPayload.error || "Jev ranking is unavailable.");
+        throw new Error(rankPayload.error || "Surge ranking is unavailable.");
       }
       lastRankedProfile.current = profileRankKey(profile);
       setRanked(rankPayload.opportunities as RankedOpportunity[]);
       const batchCount = Number(rankPayload.metadata?.batchCount || 1);
       const durationSeconds = (Number(rankPayload.metadata?.durationMs || 0) / 1000).toFixed(1);
-      setNotice(`${found.length} source-cited candidates · Jev scored ${batchCount} batch${batchCount === 1 ? "" : "es"} in ${durationSeconds}s. Open sources to verify details.`);
+      setNotice(`${found.length} source-cited candidates · Surge scored ${batchCount} batch${batchCount === 1 ? "" : "es"} in ${durationSeconds}s. Open sources to verify details.`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Live scan failed.";
       if (opportunities.some((item) => item.demo)) {
@@ -412,7 +424,8 @@ export default function Home() {
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      <aside className={`sidebar ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+        <button type="button" className="sidebar-toggle" aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!sidebarCollapsed} onClick={() => setSidebarCollapsed((value) => !value)}>{sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}</button>
         <a className="brand" href="#home" aria-label="Surge home">
           <span className="brand-mark"><Radar size={21} strokeWidth={2.5} /></span>
           <span>surge<span className="brand-period">.</span></span>
@@ -466,8 +479,8 @@ export default function Home() {
           <section className="welcome-row">
             <div>
               <div className="eyebrow"><span className="eyebrow-dot" /> GLOBAL DISCOVERY · FOUNDER-SPECIFIC FIT</div>
-              <h1>The world&apos;s opportunity<br className="title-break" /> stream, <em>ranked</em><br /> for your startup.</h1>
-              <p className="intro-copy">Surge turns a noisy global market into a founder-fit action queue—ranked by project, eligibility, location, deadline, and effort, with a source and reason behind every result.</p>
+              <h1>Thousands of opportunities.<br className="title-break" /> <em>Ranked</em> for your<br /> startup in seconds.</h1>
+              <p className="intro-copy">Surge analyzes grants, accelerators, and hackathons across the global market in real time, scores every one against your startup, and turns the best into a scheduled plan — with a source and a reason behind every rank.</p>
             </div>
             <div className="welcome-art" aria-hidden="true"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><div className="orbit orbit-three" /><div className="art-spark art-spark-one">✳</div><div className="art-spark art-spark-two">✳</div><div className="art-core"><Radar size={29} /></div><div className="art-label">A better<br />shot at yes</div></div>
           </section>
@@ -476,7 +489,10 @@ export default function Home() {
             <div className="stat-card stat-highlight"><div className="stat-icon lime-icon"><Sparkles size={16} /></div><div><span className="stat-label">TOP MATCH SCORE</span><div className="stat-value">{topScore}<span className="stat-unit"> / 100</span></div></div><span className="stat-trend"><TrendingUp size={13} /> profile fit</span></div>
             <div className="stat-card"><div className="stat-icon blue-icon"><Layers3 size={16} /></div><div><span className="stat-label">OPPORTUNITIES</span><div className="stat-value">{opportunities.length}<span className="stat-unit"> tracked</span></div></div></div>
             <div className="stat-card"><div className="stat-icon peach-icon"><Flame size={16} /></div><div><span className="stat-label">STRONG FITS</span><div className="stat-value">{fitCount}<span className="stat-unit"> to explore</span></div></div></div>
+          <div className="stat-card"><div className="stat-icon lime-icon"><Gauge size={16} /></div><div><span className="stat-label">RECORDS ANALYZED</span><div className="stat-value">{(analyzedRecords + opportunities.length).toLocaleString("en-US")}<span className="stat-unit"> this session</span></div></div></div>
           </section>
+
+          <ScaleEngine profile={profile} onAnalyzed={(records) => setAnalyzedRecords((total) => total + records)} />
 
           <OpportunitySignalMap items={resultItems} loading={loading || profileReranking} />
 
@@ -487,7 +503,7 @@ export default function Home() {
             </div>
 
             <div className={`source-note ${profileReranking ? "source-note-realigning" : ""}`} aria-live="polite"><span className="note-mark"><CircleHelp size={14} /></span><span>{notice}</span><button aria-label="Dismiss message" onClick={() => setNotice("")}><X size={14} /></button></div>
-            {(loading || profileReranking) && <div className={`scan-progress scan-progress-${profileReranking ? "ranking" : scanStage}`} aria-live="polite"><span className="scan-progress-orb"><Radar size={15} /></span><div className="scan-progress-copy"><strong>{profileReranking ? "Jev is realigning your grid" : scanStage === "ranking" ? "Jev is aligning the field" : "Surge is scanning the market"}</strong><span>{profileReranking ? "Your profile changed · live scores and card positions are updating" : scanStage === "ranking" ? "Project fit · eligibility · location · deadline · effort" : "Checking grants · accelerators · hackathons"}</span></div><span className="scan-progress-track"><span /></span></div>}
+            {(loading || profileReranking) && <div className={`scan-progress scan-progress-${profileReranking ? "ranking" : scanStage}`} aria-live="polite"><span className="scan-progress-orb"><Radar size={15} /></span><div className="scan-progress-copy"><strong>{profileReranking ? "Surge is realigning your grid" : scanStage === "ranking" ? "Surge is aligning the field" : "Surge is scanning the market"}</strong><span>{profileReranking ? "Your profile changed · live scores and card positions are updating" : scanStage === "ranking" ? "Project fit · eligibility · location · deadline · effort" : "Checking grants · accelerators · hackathons"}</span></div><span className="scan-progress-track"><span /></span></div>}
 
             <div className="filter-row">
               <div className="filter-tabs" role="tablist" aria-label="Opportunity types">{filters.map((filter) => <button role="tab" aria-selected={activeFilter === filter} className={activeFilter === filter ? "filter-active" : ""} key={filter} onClick={() => { setActiveFilter(filter); setSavedOnly(false); }}>{filter}{filter === "All opportunities" && <span>{opportunities.length}</span>}</button>)}</div>
@@ -504,7 +520,9 @@ export default function Home() {
             <div className="list-footer"><span>Showing {resultItems.length} of {opportunities.length} opportunities</span><span><span className="footer-dot" />{ranked.length ? "Sources checked just now" : "Reference list · verify current cycles"}</span></div>
           </section>
 
-          <section className="how-it-works"><div className="how-icon"><Sparkles size={17} /></div><div><strong>Surge owns the decision. Jev powers the scoring.</strong><p>Jev returns structured fit, eligibility, and effort judgments. Surge adds source checks and deadline math, then turns the pool into your next best moves.</p></div><button onClick={() => setNotice("Jev's project-fit and effort-fit scores contribute 40 and 15 points. Eligibility contributes up to 25; deadline runway contributes up to 20. Dates and hard requirements are checked separately from semantic judgments.")}>See the scoring model <ArrowRight size={14} /></button></section>
+          <ActionPlan items={allScored} weeklyHours={profile.weeklyHours} />
+
+          <section className="how-it-works"><div className="how-icon"><Sparkles size={17} /></div><div><strong>Built for the decision, not the directory.</strong><p>The Surge Engine returns structured fit, eligibility, and effort judgments for every record. Surge adds source checks and deadline math, then turns the pool into a scheduled plan of your next best moves.</p></div><button onClick={() => setNotice("Surge's project-fit and effort-fit scores contribute 40 and 15 points. Eligibility contributes up to 25; deadline runway contributes up to 20. Dates and hard requirements are checked separately from semantic judgments.")}>See the scoring model <ArrowRight size={14} /></button></section>
           <footer className="page-footer"><span>Built for founders with more ambition than hours.</span><span>Surge <span className="footer-separator">·</span> Make your next move count</span></footer>
         </div>
       </main>
@@ -521,7 +539,7 @@ function OpportunityCard({ opportunity, rank, saved, onSave }: { opportunity: Ra
       <p className="opportunity-description">{opportunity.description}</p>
       <div className="detail-row"><span><MapPin size={13} />{opportunity.location}</span><span><CalendarDays size={13} />{formatDeadline(opportunity.deadline)}</span>{opportunity.effortHours !== null && <span><Timer size={13} />~{opportunity.effortHours}h effort</span>}{opportunity.funding && <span className="funding-detail"><Sparkles size={13} />{opportunity.funding}</span>}</div>
       {opportunity.scoreBreakdown && <div className="score-breakdown" aria-label="How each score is composed"><div className="score-breakdown-heading"><span>SURGE FIT COMPOSITION</span><span>{opportunity.score}/100</span></div><div className="score-breakdown-grid">{scoreFactors.map((factor) => { const points = opportunity.scoreBreakdown?.[factor.key] ?? 0; return <div className={"score-factor " + factor.tone} key={factor.key}><div className="score-factor-label"><span>{factor.label}</span><strong>{points}<small>/{factor.max}</small></strong></div><div className="score-factor-track"><span style={{ width: (points / factor.max * 100) + "%" }} /></div></div>; })}</div></div>}
-      <div className="reason-panel"><div className="reason-heading"><span className="reason-check"><Check size={11} /></span><strong>Why it ranks here</strong><span className={`reason-engine ${opportunity.scoreSource === "Jev 1.13" ? "reason-jev" : ""}`}>{opportunity.scoreSource}</span></div><div className="reason-chips">{opportunity.reasons.map((reason, index) => <span className="reason-chip" key={`${opportunity.id}-reason-${index}`}>{reason}</span>)}</div>{opportunity.watchouts.length > 0 && <div className="watchout"><CircleHelp size={13} /><span>{opportunity.watchouts[0]}</span></div>}</div>
+      <div className="reason-panel"><div className="reason-heading"><span className="reason-check"><Check size={11} /></span><strong>Why it ranks here</strong><span className={`reason-engine ${opportunity.scoreSource === "Surge Engine" ? "reason-engine-name" : ""}`}>{opportunity.scoreSource}</span></div><div className="reason-chips">{opportunity.reasons.map((reason, index) => <span className="reason-chip" key={`${opportunity.id}-reason-${index}`}>{reason}</span>)}</div>{opportunity.watchouts.length > 0 && <div className="watchout"><CircleHelp size={13} /><span>{opportunity.watchouts[0]}</span></div>}</div>
       <div className="card-bottom"><div className="tags">{opportunity.tags.slice(0, 3).map((tag) => <span key={tag}>{tag}</span>)}</div><a className="source-link" href={opportunity.sourceUrl} target="_blank" rel="noreferrer">View source <ExternalLink size={13} /></a></div>
     </div>
   </article>;
