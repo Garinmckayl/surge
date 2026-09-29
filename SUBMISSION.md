@@ -11,7 +11,7 @@
 **Challenge:** [AWS Builder Center Zero to Shipped](https://builder.aws.com/build/hackathons/e83e84e5-4f4c-383b-bbe9-4a15ac195d55)  
 **Deadline:** October 2, 2026, 11:59 p.m. PT  
 **Live app:** https://surge.arcumet.com (public URL on AWS EC2)  
-**Recorded walkthrough:** [40-second live demo](docs/surge-demo.mp4)
+**Recorded walkthrough:** [67-second narrated demo](docs/surge-demo.mp4)
 
 ![Surge dashboard](docs/surge-dashboard.png)
 
@@ -60,10 +60,13 @@ The scale benchmark runs on a **clearly labelled synthetic catalog** so throughp
 
 The app was built with an AI coding agent working against AWS: the agent inspected the EC2 instance and network rules, configured the restartable service and HTTPS proxy, and verified the public URL. Later iterations added the scale engine, application planner, rebrand, sidebar/typography redesign, and hardening, each verified with automated browser tests against the live site.
 
-## Demo outline (40 seconds)
+## Demo outline (67 seconds, narrated)
 
-1. Open Surge: a real scan is already ranked for the default founder.
-2. Run **10,000 opportunities** — watch the counter, throughput and fit distribution fill live.
-3. Switch to **Fintech · India** and run again — a different top five.
-4. Jump to the grid: switch to **Climate · Kenya** and watch the cards re-rank with `▲/▼` chips.
-5. Scroll to the plan: **Health · UK** reschedules the four weeks around a new best-fit list.
+1. **The problem** — founders don't lack opportunities, they lack the time to find the right ones.
+2. **Surge, ranked for you** — real, source-cited opportunities already ranked for the default founder.
+3. **10,000 opportunities in ~9 seconds** — live counter, throughput and fit distribution; ≈ 2,000 hours of reading avoided.
+4. **Change the founder** — Fintech · India gets a completely different top five from the same market.
+5. **The grid re-ranks live** — `▲/▼` chips show how far each card moved (e.g. `▲9 · +57`).
+6. **Live scan** — Surge searches official organizer pages and keeps only citation-verified sources.
+7. **From ranking to action** — a four-week plan scheduled around the founder's real weekly hours.
+8. **Surge. Stop searching. Start applying.** — live on AWS.

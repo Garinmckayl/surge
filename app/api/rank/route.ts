@@ -158,7 +158,7 @@ export async function POST(request: Request) {
   for (let index = 0; index < opportunities.length; index += BATCH_SIZE) {
     batches.push(opportunities.slice(index, index + BATCH_SIZE));
   }
-  const budget = reservePublicApiBudget(request, "rank", batches.length, 2000, 20_000, 60 * 60_000);
+  const budget = reservePublicApiBudget(request, "rank", batches.length, 6000, 150_000, 60 * 60_000);
   if (!budget.allowed) {
     return NextResponse.json({ error: "The public Surge budget is temporarily exhausted. Please try again later." }, { status: 429, headers: { "Retry-After": String(budget.retryAfterSeconds) } });
   }
