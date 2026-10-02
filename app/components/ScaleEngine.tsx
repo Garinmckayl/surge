@@ -71,7 +71,7 @@ export default function ScaleEngine({ profile, onAnalyzed }: { profile: FounderP
             signal: controller.signal,
           });
           const payload = await response.json();
-          if (!response.ok) throw new Error(response.status === 429 ? "The public engine budget is refilling. Try again in a few minutes." : payload.error || "Surge could not finish the run.");
+          if (!response.ok) throw new Error(response.status === 429 ? "The public budget for large runs is used up for now and resets daily. Founder personas, the live scan and the four-week plan still work." : payload.error || "Surge could not finish the run.");
           setRun((current) => current && {
             ...current,
             done: current.done + chunk.length,

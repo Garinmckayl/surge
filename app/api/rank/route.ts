@@ -158,7 +158,11 @@ export async function POST(request: Request) {
   for (let index = 0; index < opportunities.length; index += BATCH_SIZE) {
     batches.push(opportunities.slice(index, index + BATCH_SIZE));
   }
-  const budget = reservePublicApiBudget(request, "rank", batches.length, 6000, 150_000, 60 * 60_000);
+  // Scale-demo runs (mode "scores") cost ~$0.57 per 10,000 records, so they get their own small budget;
+  // everyday calls (personas, first-visit ranking) are cheap and keep a separate allowance so they never starve.
+  const budget = body.mode === "scores"
+    ? reservePublicApiBudget(request, "rank-scale", batches.length, 600, 2_000, 60 * 60_000)
+    : reservePublicApiBudget(request, "rank", batches.length, 200, 2_500, 60 * 60_000);
   if (!budget.allowed) {
     return NextResponse.json({ error: "The public Surge budget is temporarily exhausted. Please try again later." }, { status: 429, headers: { "Retry-After": String(budget.retryAfterSeconds) } });
   }

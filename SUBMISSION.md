@@ -2,7 +2,7 @@
 
 ## Project
 
-**Surge — Analyze the whole opportunity market. Act on the few that fit.**
+**Surge — Democratizing opportunity with System 1 decision models**
 
 **Category:** Commercial Potential  
 **Lane:** Startup  
@@ -14,6 +14,14 @@
 **Recorded walkthrough:** [67-second narrated demo](docs/surge-demo.mp4)
 
 ![Surge dashboard](docs/surge-dashboard.png)
+
+## Elevator pitch
+
+Whether a founder finds the right grant, accelerator or hackathon shouldn't depend on who they know. Surge uses **System 1 decision models** — a new class of model, released in September 2026, that returns fast, calibrated judgments instead of paragraphs — to score 10,000 programs against any startup in about nine seconds, for roughly 57 cents. Every rank carries a reason and an official source, and the best fits become a four-week plan built around the hours the founder actually has.
+
+## Why System 1 decision models change who gets opportunity
+
+Matching a founder to the market is not a writing problem. It is thousands of small judgments — *am I eligible? does this fit my project? can I afford the hours?* General-purpose LLMs answer such questions the System 2 way: they deliberate in prose, token by token, which is slow, costly and hard to compare across records, so people use them on a shortlist or not at all. A **decision model** does the opposite. Introduced in September 2026, it is trained to read a situation and return a typed, calibrated answer — a choice with probabilities, or a score on a scale you define — with no prose in between. That flips the economics. In our benchmark, Surge scored 10,000 records in under ten seconds for about $0.57, which makes it affordable to score a whole catalog against *every* founder and offer it free. The edge in this market has always gone to founders with an advisor, an accelerator network, or spare hours to read thousands of pages; a solo founder in Nairobi can now get the same exhaustive first pass. We keep the speed honest with code: deadlines, the 100-point score composition and the schedule are deterministic, and every discovered program must cite its official page, so fast never means unaccountable.
 
 ## Meet Amara
 
@@ -37,7 +45,7 @@ A fintech founder in Bengaluru opens the same market and sees a completely diffe
 | --- | --- |
 | 10,000 records scored | ≈ 9 s (≈ 1,000 records/s), 500 engine batches |
 | 1,000 records in a single API call | 3.6 s, 50 batches |
-| Marginal model cost | Below the provider's billing granularity in our tests |
+| Model cost | ≈ $0.57 per 10,000 records (≈ $0.00006 per record), read from the provider's usage meter |
 | Hand-review equivalent (assumes 12 min per record) | ≈ 2,000 hours |
 
 **Personalization** — for each founder we scored the same 10,000 records and inspected the top 50:
@@ -55,7 +63,7 @@ The founders' top-50 lists overlap by **0–6%**: the engine is not returning on
 
 ## What is technically new
 
-- **Typed decisions, not generated memos.** Eligibility is a three-way choice with probabilities; project fit and application effort are five-level scored rubrics. Compact typed answers are comparable across records and batchable, which is what makes ~1,000 records/second possible.
+- **System 1 decision model, not a chatbot.** Surge's engine is a decision model: it returns typed answers, never prose. Eligibility is a three-way choice with probabilities; project fit and application effort are five-level scored rubrics. Compact typed answers are comparable across records and batchable, which is what makes ~1,000 records/second possible.
 - **The model judges; code owns the arithmetic.** The engine decides what needs judgment (fit, eligibility, effort). Deterministic code owns what must be exact — deadline runway, the 100-point composition, and scheduling — so every point is attributable and nothing is a black-box number.
 - **Citation-gated discovery.** A live scan is accepted only if the cited page matches and its host plausibly belongs to the named organizer; third-party directories and social sites are rejected as "official" sources. Unknown dates and effort are shown as unknown, never guessed.
 - **Ranking becomes action.** A scheduler places the best fits into the founder's real weekly hours in deadline order, splits work that spans weeks, and states what it left out and why.
@@ -76,7 +84,7 @@ Surge is live and public today on AWS; the measurements above are its proof poin
 ## Architecture
 
 - **Next.js on AWS EC2**, Nginx terminating HTTPS in front of a systemd-managed service; `npm run deploy` lints, builds, restarts and verifies the live page.
-- **Surge Engine** — a structured, typed decision model served through OpenRouter's Decisions API. Records are scored in 20-record batches, four in parallel; each request accepts up to 1,000 records, and the UI streams larger runs as concurrent chunks. Deadline runway is deterministic code, not a model guess.
+- **Surge Engine** — a System 1 decision model (TypeSafe AI's Jev, released September 2026) served through OpenRouter. We did not train it; Surge's contribution is the product around it: batching, the deterministic score composition, citation-gated discovery and the planner. Records are scored in 20-record batches, four in parallel; each request accepts up to 1,000 records, and the UI streams larger runs as concurrent chunks. Deadline runway is deterministic code, not a model guess.
 - **Live discovery** uses OpenRouter web search, gated by the citation checks above.
 
 ## Development process
